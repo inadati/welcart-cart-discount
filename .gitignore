@@ -1,0 +1,7 @@
+/vendor/
+/node_modules/
+/.phpunit.result.cache
+/docker/wp-content/
+/docker/.env
+*.log
+.DS_Store
