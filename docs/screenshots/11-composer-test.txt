@@ -2,6 +2,6 @@ PHPUnit 9.6.36 by Sebastian Bergmann and contributors.
 
 ...............                                                   15 / 15 (100%)
 
-Time: 00:00.005, Memory: 4.00 MB
+Time: 00:00.009, Memory: 4.00 MB
 
 OK (15 tests, 17 assertions)
