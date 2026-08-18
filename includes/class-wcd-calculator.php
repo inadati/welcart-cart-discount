@@ -20,8 +20,8 @@ class WCD_Calculator {
 	 * 到達した最上位（しきい値が最大）の1段のみを適用する。
 	 * 割引額はしきい値超過分を防ぐため小計でクランプする。
 	 *
-	 * @param float      $subtotal カート小計。
-	 * @param WCD_Rule[] $rules    割引ルールの配列。
+	 * @param float      $subtotal カート小計.
+	 * @param WCD_Rule[] $rules    割引ルールの配列.
 	 * @return float 割引額（正の値）。0以上。
 	 */
 	public static function calculate( $subtotal, array $rules ) {

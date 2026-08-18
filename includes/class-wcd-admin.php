@@ -33,7 +33,7 @@ class WCD_Admin {
 	}
 
 	/**
-	 * admin_menu アクション。Welcart Shop メニュー配下にサブメニューを追加する。
+	 * Welcart Shop メニュー配下にサブメニューを追加する admin_menu アクション用コールバック。
 	 *
 	 * @return void
 	 */
@@ -63,6 +63,7 @@ class WCD_Admin {
 		<div class="wrap">
 			<h1><?php esc_html_e( '自動割引設定', 'welcart-cart-discount' ); ?></h1>
 			<p><?php esc_html_e( 'カート合計金額のしきい値と割引額を複数段設定できます。到達した最上位の1段のみが適用されます。', 'welcart-cart-discount' ); ?></p>
+			<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- 表示切り替えのみに使用し、値の出力・処理は行わないため検証不要。 ?>
 			<?php if ( isset( $_GET['wcd_saved'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( '設定を保存しました。', 'welcart-cart-discount' ); ?></p></div>
 			<?php endif; ?>
@@ -119,7 +120,7 @@ class WCD_Admin {
 	}
 
 	/**
-	 * admin_post_wcd_save_settings アクション。設定を保存する。
+	 * 設定を保存する admin_post_wcd_save_settings アクション用コールバック。
 	 *
 	 * @return void
 	 */
@@ -130,10 +131,8 @@ class WCD_Admin {
 			wp_die( esc_html__( 'この操作を行う権限がありません。', 'welcart-cart-discount' ) );
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce は上の check_admin_referer() で検証済み。
-		$raw = isset( $_POST['wcd_rules'] ) && is_array( $_POST['wcd_rules'] )
-			? wp_unslash( $_POST['wcd_rules'] )
-			: array();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce は上の check_admin_referer() で検証済み。値のサニタイズは WCD_Settings::normalize() 内の absint() で行う。
+		$raw = isset( $_POST['wcd_rules'] ) && is_array( $_POST['wcd_rules'] ) ? wp_unslash( $_POST['wcd_rules'] ) : array();
 
 		WCD_Settings::save_rules( $raw );
 

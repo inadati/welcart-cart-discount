@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WCD_Plugin {
 
 	/**
-	 * plugins_loaded で呼ばれる初期化処理。
+	 * 初期化処理。plugins_loaded アクションから呼ばれる。
 	 *
 	 * Welcart が有効でない場合はフックを登録せず、管理画面に通知のみ出す。
 	 *

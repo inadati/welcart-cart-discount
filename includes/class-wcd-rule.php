@@ -31,9 +31,9 @@ class WCD_Rule {
 	/**
 	 * コンストラクタ。
 	 *
-	 * @param mixed $threshold しきい値金額。0より大きい整数値であること。
-	 * @param mixed $amount    割引額。0より大きい整数値であること。
-	 * @throws InvalidArgumentException しきい値または割引額が数値でない、または0以下の場合。
+	 * @param mixed $threshold しきい値金額。0より大きい整数値であること.
+	 * @param mixed $amount    割引額。0より大きい整数値であること.
+	 * @throws InvalidArgumentException しきい値または割引額が数値でない、または0以下の場合.
 	 */
 	public function __construct( $threshold, $amount ) {
 		if ( ! is_numeric( $threshold ) || ! is_numeric( $amount ) ) {

@@ -29,7 +29,7 @@ class WCD_Settings {
 	 * - しきい値が重複する行は後勝ちで排除する
 	 * - しきい値の昇順にソートする
 	 *
-	 * @param array $raw 生の入力。 array<array{threshold: mixed, amount: mixed}>。
+	 * @param array $raw 生の入力。 array<array{threshold: mixed, amount: mixed}>.
 	 * @return array 正規化済みの配列。 array<array{threshold: int, amount: int}>。
 	 */
 	public static function normalize( array $raw ) {
@@ -45,7 +45,7 @@ class WCD_Settings {
 			}
 
 			// absint() は abs( intval() ) であり負値をそのまま正値へ反転させるため、
-			// 0以下（負値含む）の判定は absint() する前の生値に対して行う。
+			// 0以下（負値含む）の判定は absint() する前の生値に対して行う.
 			if ( (float) $row['threshold'] <= 0 || (float) $row['amount'] <= 0 ) {
 				continue;
 			}
@@ -83,7 +83,7 @@ class WCD_Settings {
 	/**
 	 * 割引ルールを保存する。
 	 *
-	 * @param array $raw 生の入力。
+	 * @param array $raw 生の入力.
 	 * @return void
 	 */
 	public static function save_rules( array $raw ) {

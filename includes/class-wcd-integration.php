@@ -15,15 +15,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WCD_Integration {
 
 	/**
-	 * usces_order_discount フィルタ。割引額を注入する。
+	 * 割引額を注入する usces_order_discount フィルタ用コールバック。
 	 *
 	 * Welcart は割引額を負値で扱うため、既存の割引額から算出した割引額を減算する。
 	 * このフィルタは Welcart 側（classes/usceshop.class.php:8318, classes/tax.class.php:368）
 	 * から `apply_filters( 'usces_order_discount', $discount, $cart )` として2引数で
 	 * 呼ばれるため、$cart はここで取得し直さずフィルタ引数をそのまま使う。
 	 *
-	 * @param float $discount 既存の割引額（負値、または0）。
-	 * @param array $cart     カート情報。
+	 * @param float $discount 既存の割引額（負値、または0）.
+	 * @param array $cart     カート情報.
 	 * @return float 加算後の割引額（負値）。
 	 */
 	public static function filter_order_discount( $discount, $cart ) {
@@ -31,7 +31,7 @@ class WCD_Integration {
 	}
 
 	/**
-	 * usces_filter_order_discount_recalculation フィルタ。受注編集時の再計算。
+	 * 受注編集時に再計算する usces_filter_order_discount_recalculation フィルタ用コールバック。
 	 *
 	 * この $cart は管理画面の受注編集フォームから組み立てられた配列
 	 * （post_id/price/quantity のみを持つ0始まり配列）であり、フロントの
@@ -39,25 +39,28 @@ class WCD_Integration {
 	 * 使うこと。$usces->cart->get_cart() に差し替えると、編集対象の受注と
 	 * 無関係な管理者自身のセッションカートを参照してしまうため行わない。
 	 *
-	 * @param float  $discount  既存の割引額。
-	 * @param array  $cart      受注編集フォームから組み立てられたカート相当の配列。
-	 * @param string $condition 再計算の条件。
-	 * @param int    $order_id  受注ID。
+	 * $condition・$order_id は Welcart 側のフィルタシグネチャに合わせるためだけに
+	 * 受け取っており、本コールバックの計算では使用しない。
+	 *
+	 * @param float  $discount  既存の割引額.
+	 * @param array  $cart      受注編集フォームから組み立てられたカート相当の配列.
+	 * @param string $condition 再計算の条件.
+	 * @param int    $order_id  受注ID.
 	 * @return float
 	 */
-	public static function filter_order_recalculation( $discount, $cart, $condition, $order_id ) {
+	public static function filter_order_recalculation( $discount, $cart, $condition, $order_id ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Welcart 側のフィルタシグネチャ（4引数）に合わせるため受け取る。
 		return $discount - self::calculate_amount( $cart );
 	}
 
 	/**
-	 * usces_filter_cart_table_footer フィルタ。割引行をカート表に挿入する。
+	 * 割引行をカート表に挿入する usces_filter_cart_table_footer フィルタ用コールバック。
 	 *
 	 * Welcart 側の呼び出しは `apply_filters( 'usces_filter_cart_table_footer', $cart_table_footer )`
 	 * であり、引数は $cart_table_footer の1つのみで $cart は渡されない。
 	 * そのため $cart はここで global $usces; $usces->cart->get_cart(); により
 	 * 明示的に取得する。
 	 *
-	 * @param string $footer カート表フッターの HTML。
+	 * @param string $footer カート表フッターの HTML.
 	 * @return string
 	 */
 	public static function filter_cart_table_footer( $footer ) {
@@ -95,7 +98,7 @@ class WCD_Integration {
 	/**
 	 * 現在の設定とカートから割引額を計算する。独自フィルタの適用点でもある。
 	 *
-	 * @param array $cart カート情報。
+	 * @param array $cart カート情報.
 	 * @return float 割引額（正の値）。
 	 */
 	private static function calculate_amount( $cart ) {
