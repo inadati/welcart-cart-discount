@@ -27,6 +27,7 @@ define( 'WCD_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 require_once WCD_PLUGIN_DIR . 'includes/class-wcd-rule.php';
 require_once WCD_PLUGIN_DIR . 'includes/class-wcd-calculator.php';
 require_once WCD_PLUGIN_DIR . 'includes/class-wcd-settings.php';
+require_once WCD_PLUGIN_DIR . 'includes/class-wcd-cart-row-builder.php';
 require_once WCD_PLUGIN_DIR . 'includes/class-wcd-integration.php';
 require_once WCD_PLUGIN_DIR . 'includes/class-wcd-admin.php';
 require_once WCD_PLUGIN_DIR . 'includes/class-wcd-plugin.php';

@@ -228,16 +228,54 @@ class WCD_Integration {
 		}
 
 		$subtotal = (float) $usces->get_total_price( $cart );
-		$row      = sprintf(
-			'<tr class="wcd-discount-row"><th>%1$s</th><td>-&yen;%2$s</td></tr>' .
-			'<tr class="wcd-discounted-total-row"><th>%3$s</th><td>&yen;%4$s</td></tr>',
-			esc_html__( '自動割引', 'welcart-cart-discount' ),
-			esc_html( number_format( $amount ) ),
-			esc_html__( '割引後合計', 'welcart-cart-discount' ),
-			esc_html( number_format( max( 0, $subtotal - $amount ) ) )
+
+		/*
+		 * 行の HTML は WCD_Cart_Row_Builder に組み立てさせる。
+		 * 挿入先フッターの列構成（colspan を含む）に合わせた行を生成するため、
+		 * $footer をそのまま渡す。詳細は class-wcd-cart-row-builder.php の説明を参照。
+		 */
+		$row = WCD_Cart_Row_Builder::build(
+			$footer,
+			array(
+				array(
+					'class'  => 'wcd-discount-row',
+					'label'  => esc_html__( '自動割引', 'welcart-cart-discount' ),
+					'amount' => '-' . self::format_price( $amount ),
+				),
+				array(
+					'class'  => 'wcd-discounted-total-row',
+					'label'  => esc_html__( '割引後合計', 'welcart-cart-discount' ),
+					'amount' => self::format_price( max( 0, $subtotal - $amount ) ),
+				),
+			)
 		);
 
 		return str_replace( $needle, $row . $needle, $footer );
+	}
+
+	/**
+	 * 金額を Welcart の通貨設定に従って整形する。
+	 *
+	 * 当初は `'-&yen;' . number_format( $amount )` のように円記号を直書きしていたため、
+	 * Welcart 側の通貨設定（管理画面 > Welcart Shop > 基本設定の「通貨」。
+	 * 既定値は USD）が何であっても円表示になり、カート表の他の金額と記号が
+	 * 食い違っていた（既定設定の検証環境で他の金額が `$` 表示になり発覚）。
+	 * Welcart 本体が金額表示に使う usces_crform()（functions/template_func.php:3736）
+	 * に委譲することで、通貨記号・桁区切りが本体の他の金額と常に一致する。
+	 *
+	 * 第2・第3引数は本体のカート表フッター（templates/cart/cart.php:61）と
+	 * 同じく「記号を前置し、後置しない」を指定する。
+	 * 戻り値は usces_crform() 内で esc_html() 済みである。
+	 *
+	 * @param float $amount 金額.
+	 * @return string 整形済みの金額文字列（エスケープ済み）。
+	 */
+	private static function format_price( $amount ) {
+		if ( function_exists( 'usces_crform' ) ) {
+			return (string) usces_crform( (float) $amount, true, false, 'return' );
+		}
+
+		return esc_html( number_format( (float) $amount ) );
 	}
 
 	/**

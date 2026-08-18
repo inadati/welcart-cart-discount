@@ -23,5 +23,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/../includes/class-wcd-rule.php';
+require_once __DIR__ . '/../includes/class-wcd-cart-row-builder.php';
 require_once __DIR__ . '/../includes/class-wcd-calculator.php';
 require_once __DIR__ . '/../includes/class-wcd-settings.php';
