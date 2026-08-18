@@ -1,0 +1,90 @@
+# Copyright (C) 2026 Itadani Hiroaki
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Welcart Cart Discount 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/welcart-cart-discount\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-08-18T05:49:12+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: welcart-cart-discount\n"
+
+#. Plugin Name of the plugin
+#: welcart-cart-discount.php
+msgid "Welcart Cart Discount"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: welcart-cart-discount.php
+msgid "https://github.com/inadati/welcart-cart-discount"
+msgstr ""
+
+#. Description of the plugin
+#: welcart-cart-discount.php
+msgid "Welcart のカート合計金額に応じて自動割引を適用する。"
+msgstr ""
+
+#. Author of the plugin
+#: welcart-cart-discount.php
+msgid "Itadani Hiroaki"
+msgstr ""
+
+#: includes/class-wcd-admin.php:43
+#: includes/class-wcd-admin.php:44
+#: includes/class-wcd-admin.php:64
+msgid "自動割引設定"
+msgstr ""
+
+#: includes/class-wcd-admin.php:58
+msgid "この画面にアクセスする権限がありません。"
+msgstr ""
+
+#: includes/class-wcd-admin.php:65
+msgid "カート合計金額のしきい値と割引額を複数段設定できます。到達した最上位の1段のみが適用されます。"
+msgstr ""
+
+#: includes/class-wcd-admin.php:68
+msgid "設定を保存しました。"
+msgstr ""
+
+#: includes/class-wcd-admin.php:76
+msgid "しきい値金額（円）"
+msgstr ""
+
+#: includes/class-wcd-admin.php:77
+msgid "割引額（円）"
+msgstr ""
+
+#: includes/class-wcd-admin.php:86
+#: includes/class-wcd-admin.php:104
+msgid "削除"
+msgstr ""
+
+#: includes/class-wcd-admin.php:91
+msgid "行を追加"
+msgstr ""
+
+#: includes/class-wcd-admin.php:92
+msgid "設定を保存"
+msgstr ""
+
+#: includes/class-wcd-admin.php:131
+msgid "この操作を行う権限がありません。"
+msgstr ""
+
+#: includes/class-wcd-integration.php:89
+msgid "自動割引"
+msgstr ""
+
+#: includes/class-wcd-integration.php:91
+msgid "割引後合計"
+msgstr ""
+
+#: includes/class-wcd-plugin.php:52
+msgid "Welcart Cart Discount には Welcart Shop プラグインの有効化が必要です。"
+msgstr ""
