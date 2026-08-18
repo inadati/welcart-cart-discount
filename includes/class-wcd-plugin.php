@@ -36,6 +36,7 @@ class WCD_Plugin {
 		add_filter( 'usces_order_discount', array( 'WCD_Integration', 'filter_order_discount' ), 10, 2 );
 		add_filter( 'usces_filter_cart_table_footer', array( 'WCD_Integration', 'filter_cart_table_footer' ) );
 		add_filter( 'usces_filter_order_discount_recalculation', array( 'WCD_Integration', 'filter_order_recalculation' ), 10, 4 );
+		add_action( 'usces_action_reg_orderdata', array( 'WCD_Integration', 'record_injected_discount_on_order_registration' ) );
 
 		add_action( 'admin_menu', array( 'WCD_Admin', 'register_menu' ) );
 		add_action( 'admin_post_wcd_save_settings', array( 'WCD_Admin', 'handle_save' ) );

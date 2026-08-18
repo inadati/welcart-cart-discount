@@ -15,6 +15,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WCD_Integration {
 
 	/**
+	 * Welcart の受注メタ（wp_usces_order_meta）に、本プラグインが直近に注入した
+	 * 割引額（正の値）を記録するためのメタキー。
+	 *
+	 * Welcart の受注は独自テーブル wp_usces_order に保存され、投稿タイプではない
+	 * （wp_posts には存在しない）ため、update_post_meta() / get_post_meta() は
+	 * 使用できない。Welcart 自身が用意する $usces->set_order_meta_value() /
+	 * $usces->get_order_meta_value()（実体は wp_usces_order_meta テーブルへの
+	 * 読み書き、classes/usceshop.class.php:9334, :9342）を使う。
+	 *
+	 * @var string
+	 */
+	const INJECTED_DISCOUNT_META_KEY = 'wcd_injected_discount';
+
+	/**
 	 * 割引額を注入する usces_order_discount フィルタ用コールバック。
 	 *
 	 * Welcart は割引額を負値で扱うため、既存の割引額から算出した割引額を減算する。
@@ -39,31 +53,144 @@ class WCD_Integration {
 	 * 使うこと。$usces->cart->get_cart() に差し替えると、編集対象の受注と
 	 * 無関係な管理者自身のセッションカートを参照してしまうため行わない。
 	 *
-	 * $condition・$order_id は Welcart 側のフィルタシグネチャに合わせるためだけに
-	 * 受け取っており、本コールバックの計算では使用しない。
+	 * $condition は Welcart 側のフィルタシグネチャに合わせるためだけに受け取っており、
+	 * 本コールバックの計算では使用しない（Welcart の「ショップ条件」であり、
+	 * 下記の $change_taxrate とは別物）。
 	 *
-	 * 【$discount の意味が usces_order_discount とは異なる点に注意】
-	 * `usces_order_discount` は Welcart が毎回ゼロから計算し直す割引額を渡すため、
-	 * 「既存の割引額から加算」で正しい（確定した仕様判断の「既存割引との関係」を参照）。
-	 * 一方こちらのフックは `functions/item_post.php:2805` の
-	 * `usces_order_recalculation()` から呼ばれ、$discount の実体は
-	 * `$_POST['discount']`、つまり受注編集画面の「Campaign discount」欄に
-	 * 現在表示されている値そのもの（＝前回保存時に本プラグインが書き込んだ
-	 * 割引額を含む）である。実機検証で「1回目の再計算後に -2,000 → -2,500 と
-	 * 二重計上される」不具合を確認したため、$discount に対して加算するのではなく
-	 * 本プラグインの計算結果で置き換える。`change_taxrate=change` 時に Welcart
-	 * 自身のキャンペーン割引が $discount に入るケースでは上書きにより
-	 * その値が失われるが、二重計上という常に再現するバグを優先して回避する
-	 * トレードオフとして許容する（docs/design-notes.md に記録）。
+	 * 【$discount の意味が usces_order_discount とは異なる点、かつ呼び出し経路で
+	 * 意味そのものが変わる点に注意（functions/item_post.php を実ソースで確認済み）】
 	 *
-	 * @param float  $discount  受注編集フォームの割引額欄の現在値（本プラグイン自身の前回出力を含みうる）.
+	 * `usces_order_recalculation()` / `usces_order_recalculation_reduced()`
+	 * （呼び出し元 item_post.php:2805, :3023）はいずれも、管理画面の再計算フォームが
+	 * 送信する `$_POST['change_taxrate']` の値で $discount の由来が変わる。
+	 *
+	 * - `change_taxrate !== 'change'`（通常の再計算。数量変更など）:
+	 *   $discount は `$_POST['discount']`（または `discount_standard` +
+	 *   `discount_reduced`）そのもの、つまり受注編集フォームに現在表示されている
+	 *   割引欄の値であり、前回保存時に本プラグインが書き込んだ割引額を含む
+	 *   （item_post.php:1139, :1146）。ここに対して単純加算すると、実機検証で
+	 *   確認した「1回目の再計算後に -2,000 → -2,500 と二重計上される」不具合が
+	 *   再発する。
+	 * - `change_taxrate === 'change'`（軽減税率の切替）:
+	 *   Welcart は `$discount = 0` としてから Promotionsale キャンペーン割引のみを
+	 *   ゼロから再計算する（item_post.php:2779-2795, :2984-3020）。この経路の
+	 *   $discount は $_POST の値を一切引き継がず、本プラグインの前回寄与を
+	 *   含まない、Welcart 自身のキャンペーン割引のみである。
+	 *
+	 * そのため、単純な「丸ごと置き換え」（二重計上は防げるが change_taxrate=change
+	 * 時に Welcart 自身のキャンペーン割引を消してしまう）でも、単純な「常に加算」
+	 * （二重計上が再発する）でもなく、$_POST['change_taxrate'] で経路を判定した上で
+	 * 以下のように扱う。
+	 *
+	 * - change_taxrate === 'change' のとき: $discount は本プラグインの寄与を
+	 *   含まないため、そのまま加算する（$discount - $amount）。
+	 * - それ以外のとき: 前回本プラグインが注入した割引額（wp_usces_order_meta に
+	 *   {@see self::INJECTED_DISCOUNT_META_KEY} で記録済み）だけを $discount から
+	 *   差し戻し、Welcart 自身のキャンペーン割引など他の割引成分を復元してから、
+	 *   新しい割引額を適用する。
+	 *
+	 * いずれの経路でも、次回のためにその時点の割引額を meta に書き直す。
+	 *
+	 * 【$_POST['change_taxrate'] を参照することについて】
+	 * Welcart のフィルタ引数（$discount, $cart, $condition, $order_id）だけでは
+	 * どちらの経路かを判別できない（$condition は変化しない）。$change_taxrate は
+	 * item_post.php:1136, :1143 で `$_POST['change_taxrate']` から読み取られる
+	 * ローカル変数であり、フィルタには渡されない。このフィルタは常に同一リクエスト
+	 * 内（Welcart 自身の管理画面ハンドラの実行中）でのみ呼ばれるため、同じ
+	 * $_POST を読み取ることで経路を判別する。この値は表示分岐にのみ使い、
+	 * 保存処理の実行可否そのものは判断していないため、nonce 検証は不要
+	 * （Welcart 側のリクエスト処理で完結している）。将来 Welcart がこの
+	 * フィールド名を変更した場合は空文字列にフォールバックし、常に
+	 * meta による差し戻し（より安全な既定動作）を行う。
+	 *
+	 * @param float  $discount  Welcart 側で算出された割引額（経路により意味が異なる。上記参照）.
 	 * @param array  $cart      受注編集フォームから組み立てられたカート相当の配列.
-	 * @param string $condition 再計算の条件.
+	 * @param string $condition 再計算の条件（Welcart のショップ条件。本コールバックでは未使用）.
 	 * @param int    $order_id  受注ID.
 	 * @return float
 	 */
 	public static function filter_order_recalculation( $discount, $cart, $condition, $order_id ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Welcart 側のフィルタシグネチャ（4引数）に合わせるため受け取る。
-		return -self::calculate_amount( $cart );
+		$amount = self::calculate_amount( $cart );
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- 保存可否の判断には使わず、$discount の由来（通常再計算か軽減税率変更か）を判別する読み取り専用の分岐にのみ使用する。nonce検証・権限チェックはWelcart自身の管理画面ハンドラ（item_post.php）側で完結している。
+		$change_taxrate = isset( $_POST['change_taxrate'] ) ? sanitize_text_field( wp_unslash( $_POST['change_taxrate'] ) ) : '';
+
+		if ( 'change' === $change_taxrate ) {
+			// この経路の $discount は本プラグインの寄与を含まない
+			// （Welcart 自身のキャンペーン割引のみ、ゼロから再計算されたもの）ため,
+			// そのまま加算する.
+			$new_discount = $discount - $amount;
+		} else {
+			// この経路の $discount には前回本プラグインが注入した割引額が
+			// 含まれている. その既知の値だけを差し戻し、他の割引成分を復元する.
+			$previous_injected = self::get_injected_discount( $order_id );
+			$other_components  = $discount + $previous_injected;
+			$new_discount      = $other_components - $amount;
+		}
+
+		self::remember_injected_discount( $order_id, $amount );
+
+		return $new_discount;
+	}
+
+	/**
+	 * 受注登録アクション usces_action_reg_orderdata 用コールバック。
+	 *
+	 * 受注が新規登録された直後（functions/function.php:266, :417 の
+	 * `do_action( 'usces_action_reg_orderdata', $args )`）に発火する。この時点で
+	 * $args['order_id'] は確定済みで、$args['cart'] は登録された受注のカート内容
+	 * （array<int, array{post_id:int, price:float, quantity:float, ...}>）である。
+	 * usces_reg_orderdata() / usces_new_orderdata()（settlement_func.php:794,
+	 * usceshop.class.php:966, :7678）は全ての決済方法が共通して通る受注登録経路
+	 * であるため、ここで本プラグインが実際に注入した割引額（正の値）を記録して
+	 * おき、受注編集時の再計算（filter_order_recalculation()）で差し戻しに使う。
+	 *
+	 * @param array $args 'cart', 'entry', 'order_id' 等を含む連想配列.
+	 * @return void
+	 */
+	public static function record_injected_discount_on_order_registration( $args ) {
+		if ( ! is_array( $args ) || empty( $args['order_id'] ) || empty( $args['cart'] ) ) {
+			return;
+		}
+
+		self::remember_injected_discount( (int) $args['order_id'], self::calculate_amount( $args['cart'] ) );
+	}
+
+	/**
+	 * 本プラグインが直近に注入した割引額を Welcart の受注メタから取得する。
+	 *
+	 * @param int $order_id 受注ID.
+	 * @return float 正の値。記録がなければ 0.0。
+	 */
+	private static function get_injected_discount( $order_id ) {
+		global $usces;
+
+		if ( empty( $order_id ) || ! isset( $usces ) || ! is_object( $usces ) ) {
+			return 0.0;
+		}
+
+		return (float) $usces->get_order_meta_value( self::INJECTED_DISCOUNT_META_KEY, (int) $order_id );
+	}
+
+	/**
+	 * 本プラグインが注入した割引額を Welcart の受注メタに記録する。
+	 *
+	 * Welcart の受注は独自テーブル（wp_usces_order）に保存され投稿タイプではない
+	 * ため、post meta ではなく $usces->set_order_meta_value() を使う
+	 * （classes/usceshop.class.php:9342）。
+	 *
+	 * @param int   $order_id 受注ID.
+	 * @param float $amount   正の割引額.
+	 * @return void
+	 */
+	private static function remember_injected_discount( $order_id, $amount ) {
+		global $usces;
+
+		if ( empty( $order_id ) || ! isset( $usces ) || ! is_object( $usces ) ) {
+			return;
+		}
+
+		$usces->set_order_meta_value( self::INJECTED_DISCOUNT_META_KEY, $amount, (int) $order_id );
 	}
 
 	/**
