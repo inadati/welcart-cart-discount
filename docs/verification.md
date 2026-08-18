@@ -228,6 +228,59 @@ evaluator の REJECT（`order-meta-hook-coverage` 軸）を受け、上記「8�
 
 [`docs/screenshots/20-new-order-1001-saved-500.png`](screenshots/20-new-order-1001-saved-500.png)
 
+## 10. 受注再計算の既知の限界の追加検証（3周目修正・-¥2,500 の実機確認と UI 経由の手動修正）
+
+evaluator の REJECT（`known-limitation-precision` 軸）を受け、`docs/design-notes.md`
+「受注再計算の既知の限界」節が「実機で確認した」と記載していた -¥2,500 という数値と、
+「Campaign discount 欄を UI で手動編集して保存する」という回避策について、実際には
+上記8節では検証されていなかった点（8-1 と 8-2 が連続した操作ではなく、8-2 は SQL で
+改めてクリーンな状態に戻してから行われていたこと、回避策自体は SQL による DB 直接
+書き換えでしか検証されていなかったこと）を補った。
+
+**手順1（8-1 の再現）**: 既存の受注（ID 1000）を SQL で「メタ未記録・数量4・
+`order_item_total_price=12000.00`・`order_discount=-500.00`」という状態に戻した。
+受注編集画面で数量を変更せずに「Recalculation」を押したところ、8-1 節と同じく
+表示が -¥500 から **-¥1,000** に変化した。
+
+[`docs/screenshots/21-order1000-recalc1-minus1000.png`](screenshots/21-order1000-recalc1-minus1000.png)
+
+**手順2（8-1 からの連続シナリオ・未検証だった続きの操作）**: 上記の -¥1,000 の状態から
+**SQL でリセットせずそのまま**、同じ受注編集画面で数量を10（¥30,000）に変更し、
+もう一度「Recalculation」を押した。実際に表示された値は **-¥2,500** であり、
+`docs/design-notes.md` の数式（telescoping 展開: `discount_n = -(amount_before_fix) -
+amount_n`、`amount_before_fix = 500` が毎回加算され続けるため
+`-500 - 2000 = -2500`）による推定値と正確に一致することを実機で確認した。
+
+[`docs/screenshots/22-order1000-recalc2-minus2500-confirmed.png`](screenshots/22-order1000-recalc2-minus2500-confirmed.png)
+
+**手順3（回避策の実機確認・UI 経由の手動修正）**: 上記の誤った状態（表示 -¥2,500）から、
+実際に管理画面の「Campaign discount」欄（`#order_discount`）へ直接 `-2000` を入力し
+（SQL ではなく UI 操作）、「change decision」ボタンで保存した。
+
+[`docs/screenshots/23-order1000-manual-ui-fix-before-save.png`](screenshots/23-order1000-manual-ui-fix-before-save.png)
+
+保存後、DB を直接クエリして `wp_usces_order`（ID=1000）が
+`order_item_total_price = 30000.00` / `order_discount = -2000.00` として正しく
+反映されていることを確認した。これにより「Campaign discount 欄を UI で手動編集して
+保存する」という回避策が、SQL によるシミュレーションではなく実際の管理画面操作を
+通じて機能することを実機で確認できた。
+
+さらに、この保存後にページを再読み込みしてもう一度「Recalculation」を押したところ、
+表示は -¥2,000 のまま変化しなかった（メタと discount フィールドの整合が回復し、
+以降の再計算が健全な状態に戻ったことを確認）。
+
+[`docs/screenshots/24-order1000-post-ui-fix-healthy-recalc.png`](screenshots/24-order1000-post-ui-fix-healthy-recalc.png)
+
+### 10-1. `composer lint` / `composer test` の再実行（3周目修正後）
+
+ローカル環境の PHP（`/opt/homebrew/opt/php@8.2/bin/php`）で `/tmp/composer.phar test`
+/ `/tmp/composer.phar lint` を実行し、次を確認した（本タスクはドキュメント・検証が
+中心でコード変更を行っていないため、テスト内容自体は test-quality 軸の修正
+（空文字・非数値の除去テスト追加）を反映した最新のテストスイートである）。
+
+- `phpunit --bootstrap tests/bootstrap.php tests/unit`: 16 tests, 18 assertions, OK
+- `phpcs --standard=phpcs.xml.dist`: 7 / 7 完了、違反0件
+
 ## その他の記録（参考）
 
 - Welcart Shop・本プラグインの有効化直後のプラグイン一覧:
