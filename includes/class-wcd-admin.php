@@ -1,0 +1,120 @@
+<?php
+/**
+ * 設定画面の描画と保存処理。
+ *
+ * @package Welcart_Cart_Discount
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * 割引ルール設定画面。
+ */
+class WCD_Admin {
+
+	/**
+	 * 保存処理・メニュー登録で共通して使う capability を返す。
+	 *
+	 * Welcart 独自の capability（wel_manage_setting）が administrator ロールに
+	 * 存在しない環境では manage_options にフォールバックする。
+	 *
+	 * @return string
+	 */
+	public static function get_capability() {
+		$administrator = get_role( 'administrator' );
+
+		if ( $administrator && $administrator->has_cap( 'wel_manage_setting' ) ) {
+			return 'wel_manage_setting';
+		}
+
+		return 'manage_options';
+	}
+
+	/**
+	 * admin_menu アクション。Welcart Shop メニュー配下にサブメニューを追加する。
+	 *
+	 * @return void
+	 */
+	public static function register_menu() {
+		add_submenu_page(
+			USCES_PLUGIN_BASENAME,
+			__( '自動割引設定', 'welcart-cart-discount' ),
+			__( '自動割引設定', 'welcart-cart-discount' ),
+			self::get_capability(),
+			'wcd_settings',
+			array( __CLASS__, 'render_page' )
+		);
+	}
+
+	/**
+	 * 設定画面を描画する。
+	 *
+	 * @return void
+	 */
+	public static function render_page() {
+		if ( ! current_user_can( self::get_capability() ) ) {
+			wp_die( esc_html__( 'この画面にアクセスする権限がありません。', 'welcart-cart-discount' ) );
+		}
+
+		$rules = get_option( WCD_Settings::OPTION_KEY, array() );
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( '自動割引設定', 'welcart-cart-discount' ); ?></h1>
+			<p><?php esc_html_e( 'カート合計金額のしきい値と割引額を複数段設定できます。到達した最上位の1段のみが適用されます。', 'welcart-cart-discount' ); ?></p>
+			<?php if ( isset( $_GET['wcd_saved'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( '設定を保存しました。', 'welcart-cart-discount' ); ?></p></div>
+			<?php endif; ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="wcd_save_settings" />
+				<?php wp_nonce_field( 'wcd_save_settings', 'wcd_nonce' ); ?>
+				<table class="widefat" id="wcd-rules-table">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'しきい値金額（円）', 'welcart-cart-discount' ); ?></th>
+							<th><?php esc_html_e( '割引額（円）', 'welcart-cart-discount' ); ?></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $rules as $index => $rule ) : ?>
+							<tr>
+								<td><input type="number" min="1" step="1" name="wcd_rules[<?php echo (int) $index; ?>][threshold]" value="<?php echo esc_attr( $rule['threshold'] ); ?>" /></td>
+								<td><input type="number" min="1" step="1" name="wcd_rules[<?php echo (int) $index; ?>][amount]" value="<?php echo esc_attr( $rule['amount'] ); ?>" /></td>
+								<td><button type="button" class="button wcd-remove-row"><?php esc_html_e( '削除', 'welcart-cart-discount' ); ?></button></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<p><button type="button" class="button" id="wcd-add-row"><?php esc_html_e( '行を追加', 'welcart-cart-discount' ); ?></button></p>
+				<?php submit_button( __( '設定を保存', 'welcart-cart-discount' ) ); ?>
+			</form>
+		</div>
+		<script>
+		( function() {
+			var table = document.getElementById( 'wcd-rules-table' ).getElementsByTagName( 'tbody' )[0];
+
+			function rowTemplate( index ) {
+				var tr = document.createElement( 'tr' );
+				tr.innerHTML =
+					'<td><input type="number" min="1" step="1" name="wcd_rules[' + index + '][threshold]" /></td>' +
+					'<td><input type="number" min="1" step="1" name="wcd_rules[' + index + '][amount]" /></td>' +
+					'<td><button type="button" class="button wcd-remove-row"><?php echo esc_js( __( '削除', 'welcart-cart-discount' ) ); ?></button></td>';
+				return tr;
+			}
+
+			document.getElementById( 'wcd-add-row' ).addEventListener( 'click', function() {
+				table.appendChild( rowTemplate( table.children.length ) );
+			} );
+
+			table.addEventListener( 'click', function( event ) {
+				if ( event.target.classList.contains( 'wcd-remove-row' ) ) {
+					event.target.closest( 'tr' ).remove();
+				}
+			} );
+		} )();
+		</script>
+		<?php
+	}
+}
