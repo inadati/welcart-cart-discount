@@ -5,3 +5,5 @@
 /docker/.env
 *.log
 .DS_Store
+/.tmp-upload/
+/.playwright-mcp/

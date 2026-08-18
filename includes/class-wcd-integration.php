@@ -42,14 +42,28 @@ class WCD_Integration {
 	 * $condition・$order_id は Welcart 側のフィルタシグネチャに合わせるためだけに
 	 * 受け取っており、本コールバックの計算では使用しない。
 	 *
-	 * @param float  $discount  既存の割引額.
+	 * 【$discount の意味が usces_order_discount とは異なる点に注意】
+	 * `usces_order_discount` は Welcart が毎回ゼロから計算し直す割引額を渡すため、
+	 * 「既存の割引額から加算」で正しい（確定した仕様判断の「既存割引との関係」を参照）。
+	 * 一方こちらのフックは `functions/item_post.php:2805` の
+	 * `usces_order_recalculation()` から呼ばれ、$discount の実体は
+	 * `$_POST['discount']`、つまり受注編集画面の「Campaign discount」欄に
+	 * 現在表示されている値そのもの（＝前回保存時に本プラグインが書き込んだ
+	 * 割引額を含む）である。実機検証で「1回目の再計算後に -2,000 → -2,500 と
+	 * 二重計上される」不具合を確認したため、$discount に対して加算するのではなく
+	 * 本プラグインの計算結果で置き換える。`change_taxrate=change` 時に Welcart
+	 * 自身のキャンペーン割引が $discount に入るケースでは上書きにより
+	 * その値が失われるが、二重計上という常に再現するバグを優先して回避する
+	 * トレードオフとして許容する（docs/design-notes.md に記録）。
+	 *
+	 * @param float  $discount  受注編集フォームの割引額欄の現在値（本プラグイン自身の前回出力を含みうる）.
 	 * @param array  $cart      受注編集フォームから組み立てられたカート相当の配列.
 	 * @param string $condition 再計算の条件.
 	 * @param int    $order_id  受注ID.
 	 * @return float
 	 */
 	public static function filter_order_recalculation( $discount, $cart, $condition, $order_id ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Welcart 側のフィルタシグネチャ（4引数）に合わせるため受け取る。
-		return $discount - self::calculate_amount( $cart );
+		return -self::calculate_amount( $cart );
 	}
 
 	/**
