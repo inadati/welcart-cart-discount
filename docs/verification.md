@@ -176,6 +176,58 @@ DB（`wp_usces_order.order_discount` / `wp_usces_order_meta.wcd_injected_discoun
   17 assertions, OK
 - `vendor/bin/phpcs --standard=phpcs.xml.dist`: 7 / 7 完了、違反0件
 
+## 9. 新規受注（フロント購入フロー）での受注メタ自動記録の実機確認（3周目修正）
+
+evaluator の REJECT（`order-meta-hook-coverage` 軸）を受け、上記「8」節までの再検証が
+既存受注（ID 1000）を SQL で意図的に状態操作したものに留まり、
+`usces_action_reg_orderdata` フック自体が実際のフロント購入フローを通じて発火することを
+確認していなかった点を補った。
+
+**手順**: 既存の Docker 環境・Playwright で管理画面にログインし（パスワードは
+`wp_set_password()` で再設定）、`Welcart Shop > 自動割引設定` の割引ルール
+（10,000円以上-500円／30,000円以上-2,000円）が保持されていることを確認した上で、
+フロント（`http://localhost:8080`）でテスト商品（TEST-40000／¥40,000、
+セッションカートに残っていた TEST-3000×4／¥12,000 と合わせて合計¥52,000）を
+カートに入れ、非会員として購入手続きを最後まで進めて新しい受注を確定した。
+
+- しきい値未満のカート画面（割引行）:
+  [`docs/screenshots/15-settings-confirmed-before-new-order-flow.png`](screenshots/15-settings-confirmed-before-new-order-flow.png)
+- カート画面（自動割引 -¥2,000、合計¥52,000）:
+  [`docs/screenshots/16-new-order-flow-cart.png`](screenshots/16-new-order-flow-cart.png)
+- 購入確認画面（Campaign discount $-2,000.00、Total Amount $50,000.00）:
+  [`docs/screenshots/17-new-order-flow-confirmation.png`](screenshots/17-new-order-flow-confirmation.png)
+
+購入を確定すると新しい受注 ID 1001 が発行された。DB を直接クエリして確認したところ、
+
+- `wp_usces_order`（ID=1001）: `order_item_total_price = 52000.00`,
+  `order_discount = -2000.00`
+- `wp_usces_order_meta`（order_id=1001）: `wcd_injected_discount = 2000`
+
+であり、**フロントの購入フローを通じて `usces_action_reg_orderdata` が実際に発火し、
+`WCD_Integration::record_injected_discount_on_order_registration()` が
+`$args['order_id']` と `$args['cart']` を正しく受け取って、本プラグインが注入した
+割引額（¥2,000）を `wp_usces_order_meta.wcd_injected_discount` へ自動的に正しく
+記録すること**を実機で確認した。管理画面の受注詳細画面でも Campaign discount が
+`-2000.00` と表示されることを確認した。
+
+[`docs/screenshots/18-new-order-1001-detail.png`](screenshots/18-new-order-1001-detail.png)
+
+続けて、この新規受注（ID 1001）を管理画面の受注編集画面で開き、TEST-40000 の数量を
+`0` に変更して「Recalculation」を押したところ、正しい段（合計¥12,000 → -¥500）に
+切り替わった。もう一度「Recalculation」を押しても -¥500 のまま変化しない（べき等）
+ことを確認し、`wp_usces_order_meta.wcd_injected_discount` も `500` に更新されている
+ことを確認した（このタイミングでは受注本体の DB 値はまだ更新前の
+`order_item_total_price = 52000.00` / `order_discount = -2000.00` のままであり、
+「Recalculation」は画面上のプレビュー計算のみで、受注本体の保存は行っていないことも
+併せて確認した）。
+
+[`docs/screenshots/19-new-order-1001-recalc-500.png`](screenshots/19-new-order-1001-recalc-500.png)
+
+さらに「change decision」で保存し、DB（`wp_usces_order.order_item_total_price = 12000.00`,
+`order_discount = -500.00`）へ正しく反映されることを確認した。
+
+[`docs/screenshots/20-new-order-1001-saved-500.png`](screenshots/20-new-order-1001-saved-500.png)
+
 ## その他の記録（参考）
 
 - Welcart Shop・本プラグインの有効化直後のプラグイン一覧:
