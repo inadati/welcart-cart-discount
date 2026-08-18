@@ -84,6 +84,10 @@ class WCD_Integration {
 			return $footer;
 		}
 
+		if ( ! isset( $usces->cart ) || ! is_object( $usces->cart ) ) {
+			return $footer;
+		}
+
 		$cart   = $usces->cart->get_cart();
 		$amount = self::calculate_amount( $cart );
 
