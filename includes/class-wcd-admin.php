@@ -117,4 +117,35 @@ class WCD_Admin {
 		</script>
 		<?php
 	}
+
+	/**
+	 * admin_post_wcd_save_settings アクション。設定を保存する。
+	 *
+	 * @return void
+	 */
+	public static function handle_save() {
+		check_admin_referer( 'wcd_save_settings', 'wcd_nonce' );
+
+		if ( ! current_user_can( self::get_capability() ) ) {
+			wp_die( esc_html__( 'この操作を行う権限がありません。', 'welcart-cart-discount' ) );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce は上の check_admin_referer() で検証済み。
+		$raw = isset( $_POST['wcd_rules'] ) && is_array( $_POST['wcd_rules'] )
+			? wp_unslash( $_POST['wcd_rules'] )
+			: array();
+
+		WCD_Settings::save_rules( $raw );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'      => 'wcd_settings',
+					'wcd_saved' => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
 }
