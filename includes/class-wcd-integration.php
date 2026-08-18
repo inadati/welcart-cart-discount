@@ -50,6 +50,49 @@ class WCD_Integration {
 	}
 
 	/**
+	 * usces_filter_cart_table_footer フィルタ。割引行をカート表に挿入する。
+	 *
+	 * Welcart 側の呼び出しは `apply_filters( 'usces_filter_cart_table_footer', $cart_table_footer )`
+	 * であり、引数は $cart_table_footer の1つのみで $cart は渡されない。
+	 * そのため $cart はここで global $usces; $usces->cart->get_cart(); により
+	 * 明示的に取得する。
+	 *
+	 * @param string $footer カート表フッターの HTML。
+	 * @return string
+	 */
+	public static function filter_cart_table_footer( $footer ) {
+		global $usces;
+
+		if ( ! isset( $usces ) || ! is_object( $usces ) ) {
+			return $footer;
+		}
+
+		$cart   = $usces->cart->get_cart();
+		$amount = self::calculate_amount( $cart );
+
+		if ( $amount <= 0 ) {
+			return $footer;
+		}
+
+		$needle = '</tfoot>';
+		if ( false === strpos( $footer, $needle ) ) {
+			return $footer;
+		}
+
+		$subtotal = (float) $usces->get_total_price( $cart );
+		$row      = sprintf(
+			'<tr class="wcd-discount-row"><th>%1$s</th><td>-&yen;%2$s</td></tr>' .
+			'<tr class="wcd-discounted-total-row"><th>%3$s</th><td>&yen;%4$s</td></tr>',
+			esc_html__( '自動割引', 'welcart-cart-discount' ),
+			esc_html( number_format( $amount ) ),
+			esc_html__( '割引後合計', 'welcart-cart-discount' ),
+			esc_html( number_format( max( 0, $subtotal - $amount ) ) )
+		);
+
+		return str_replace( $needle, $row . $needle, $footer );
+	}
+
+	/**
 	 * 現在の設定とカートから割引額を計算する。独自フィルタの適用点でもある。
 	 *
 	 * @param array $cart カート情報。
