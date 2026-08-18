@@ -51,6 +51,31 @@ class WCD_SettingsTest extends TestCase {
 		$this->assertSame( array(), $result );
 	}
 
+	public function test_discards_non_numeric_rows() {
+		$result = WCD_Settings::normalize(
+			array(
+				array(
+					'threshold' => '',
+					'amount'    => 500,
+				),
+				array(
+					'threshold' => 'abc',
+					'amount'    => 500,
+				),
+				array(
+					'threshold' => 10000,
+					'amount'    => '',
+				),
+				array(
+					'threshold' => 10000,
+					'amount'    => 'abc',
+				),
+			)
+		);
+
+		$this->assertSame( array(), $result );
+	}
+
 	public function test_ignores_malformed_rows() {
 		$result = WCD_Settings::normalize(
 			array(
