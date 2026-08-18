@@ -39,6 +39,21 @@ Composer の開発依存（PHPUnit 9.6.36 / PHP_CodeSniffer 3.13.6 相当、
 でインストールし、`composer lint` ・`composer test` を実行して確認した
 （`docs/screenshots/10-composer-lint.txt` ／ `docs/screenshots/11-composer-test.txt`）。
 
+### `.gitlab-ci.yml` について（未実行であることの明記）
+
+`.gitlab-ci.yml` は `lint` / `test` ステージで `composer lint` / `composer test` を
+実行する設定を用意しているが、**このリポジトリは GitLab にリモートとして push しておらず
+（`git remote` 未設定）、GitLab Runner 上でこのパイプラインが実際に実行された記録は無い**。
+実施したのは YAML 構文の妥当性チェックのみである。
+
+```bash
+python3 -c "import yaml; yaml.safe_load(open('.gitlab-ci.yml'))"
+```
+
+`composer lint` / `composer test` そのものは、上記の通りローカル環境（および後述の
+Docker コンテナ内）で実行し、結果を確認している。GitLab Runner 環境での実行確認は
+「動くはず」の域を出ておらず、今回は行っていない。
+
 ## 必須要件チェックリスト
 
 - [x] 独立したプラグインとして実装（Welcart 本体・テーマは無改変）
