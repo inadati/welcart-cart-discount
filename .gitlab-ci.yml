@@ -1,0 +1,21 @@
+stages:
+  - lint
+  - test
+
+default:
+  image: php:7.4-cli
+  before_script:
+    - apt-get update -yqq && apt-get install -yqq git unzip libzip-dev zip
+    - docker-php-ext-install zip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer install --no-interaction --prefer-dist
+
+lint:
+  stage: lint
+  script:
+    - composer lint
+
+test:
+  stage: test
+  script:
+    - composer test
