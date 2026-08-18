@@ -105,8 +105,32 @@ class WCD_Admin {
 				return tr;
 			}
 
+			// tbody の子要素数（table.children.length）を新規行のインデックスに使うと、
+			// 行を削除して残存行のインデックスに欠番ができた際、追加した行と既存行の
+			// インデックスが衝突し name 属性が重複する。フォーム送信時、同一キーの
+			// 重複パラメータは PHP のパース規則により後勝ちとなるため、既存行の入力値が
+			// 新規行の値で silently に上書きされてしまう。
+			// これを避けるため、既存の input の name 属性から使用済みインデックスの
+			// 最大値を都度走査し、その +1 を新規行のインデックスとして採番する。
+			// WCD_Settings::normalize() はキーの連番性に依存せず値のみを見て正規化する
+			// ため、削除によってインデックスに欠番ができても問題は生じない。
+			function nextIndex() {
+				var inputs = table.querySelectorAll( 'input[name^="wcd_rules["]' );
+				var max = -1;
+
+				for ( var i = 0; i < inputs.length; i++ ) {
+					var match = inputs[ i ].name.match( /^wcd_rules\[(\d+)\]/ );
+
+					if ( match && parseInt( match[1], 10 ) > max ) {
+						max = parseInt( match[1], 10 );
+					}
+				}
+
+				return max + 1;
+			}
+
 			document.getElementById( 'wcd-add-row' ).addEventListener( 'click', function() {
-				table.appendChild( rowTemplate( table.children.length ) );
+				table.appendChild( rowTemplate( nextIndex() ) );
 			} );
 
 			table.addEventListener( 'click', function( event ) {
