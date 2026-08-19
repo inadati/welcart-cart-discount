@@ -39,22 +39,28 @@ Composer の開発依存（PHPUnit 9.6.36 / PHP_CodeSniffer 3.13.6 相当、
 でインストールし、`composer lint` ・`composer test` を実行して確認した
 （`docs/screenshots/10-composer-lint.txt` ／ `docs/screenshots/11-composer-test.txt`）。
 
-### CI（`.gitlab-ci.yml`）
+### CI（GitHub Actions）
 
-GitLab Runner 上で以下の3ジョブを実行している。
+`.github/workflows/ci.yml` で以下の4ジョブを実行している（`main` への push と
+プルリクエストで起動）。
 
 | ジョブ | PHP | 内容 |
 | --- | --- | --- |
-| `lint` | 8.2 | `composer lint`（PHP_CodeSniffer / WPCS） |
-| `test` | 8.2 | `composer test`（PHPUnit） |
-| `syntax:php7.4` | 7.4 | 全 PHP ファイルの `php -l` |
+| `lint (WPCS / plugin)` | 8.2 | `composer lint` — プラグイン本体の WPCS 準拠 |
+| `lint (WPCS / verification env)` | 8.2 | `composer lint:env` — `docker/` 配下（検証環境）の WPCS 準拠 |
+| `test (PHPUnit)` | 8.2 | `composer test` |
+| `syntax (php -l on 7.4)` | 7.4 | 全 PHP ファイルの構文チェック |
 
 `lint` / `test` を 8.2 で回しているのは、実際に動作確認した PHP バージョン
-（上表参照）に合わせるため。当初 `php:7.4-cli` を指定していたが、
-`composer.lock` は PHP 8 系で生成されており開発依存（`doctrine/instantiator` 2.0 等）が
-PHP 8.1 以上を要求するため `composer install` が解決できずに失敗した。
-これは **GitLab に push して実際にパイプラインを回して初めて判明した**もので、
-ローカル実行だけでは気づけなかった。
+（上表参照）に合わせるため。
+
+**当初 CI を PHP 7.4 で回そうとして失敗した経緯**: 最初は GitLab CI
+（`.gitlab-ci.yml`）で `php:7.4-cli` を指定していたが、`composer.lock` は
+PHP 8 系で生成されており開発依存（`doctrine/instantiator` 2.0、
+`myclabs/deep-copy` 1.14 等）が PHP 8.1 以上を要求するため `composer install` が
+依存を解決できずに失敗した。**リモートに push して実際に CI を回して初めて
+判明した**もので、ローカルで `composer lint` / `composer test` が通っていても
+気づけない類の問題だった。この経緯は `docs/ai-report.md` にも記録している。
 
 `composer.json` の `require` は `"php": ">=7.4"` としている。この下限については
 開発依存を必要としない構文チェック（`php -l`）を 7.4 で実行して裏付けている。

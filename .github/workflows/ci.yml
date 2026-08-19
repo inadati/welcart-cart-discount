@@ -1,0 +1,87 @@
+# CI 構成。
+#
+# lint / lint:env / test は「実際に動作確認した PHP バージョン」で回す
+# （README の動作確認環境に合わせて 8.2）。
+#
+# 当初は GitLab CI（.gitlab-ci.yml）で php 7.4 を指定していたが、
+# composer.lock は PHP 8 系で生成されており開発依存
+# （doctrine/instantiator 2.0、myclabs/deep-copy 1.14 等）が PHP 8.1 以上を
+# 要求するため `composer install` が依存を解決できず失敗した。
+# これは実際に CI を回して初めて判明したもので、ローカル実行では気づけなかった。
+#
+# 一方 composer.json の require は php >=7.4 としている。この下限を裏付けるため、
+# 開発依存を必要としない構文チェック（php -l）だけを 7.4 でも実行する。
+# 「7.4 でテストが全て通ることを確認した」とまでは言えないため、
+# 構文互換の確認に留めていることをジョブ名で明示している。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: lint (WPCS / plugin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: none
+      - name: composer install
+        run: composer install --prefer-dist --no-interaction
+      - run: composer lint
+
+  lint-env:
+    # 検証環境（docker/ 配下の動作確認用テーマとセットアップスクリプト）の規約チェック。
+    # 提出物ではないが、リポジトリに含まれるコードなので同じ基準で検証する。
+    # プラグイン本体とは別のルールセットにしているのは、Welcart 本体が
+    # テンプレートのファイル名・変数名をハードコードで探す箇所があり、
+    # テーマ側では一部の命名規則スニフを除外する必要があるため
+    # （docker/phpcs.xml.dist のコメント参照）。
+    name: lint (WPCS / verification env)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: none
+      - name: composer install
+        run: composer install --prefer-dist --no-interaction
+      - run: composer lint:env
+
+  test:
+    name: test (PHPUnit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: none
+      - name: composer install
+        run: composer install --prefer-dist --no-interaction
+      - run: composer test
+
+  syntax-php74:
+    # composer.json の "php": ">=7.4" の下限を裏付ける構文互換チェック。
+    # 開発依存を入れないため composer install は行わない。
+    name: syntax (php -l on 7.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
+      - run: php -v
+      - name: php -l on all PHP files
+        run: find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
