@@ -113,21 +113,23 @@ PHP 8.1 以上を要求するため `composer install` が解決できずに失�
 
 ## ローカル動作確認手順
 
-Docker があれば、次の2コマンドで WordPress・Welcart・本プラグインが
-有効化された状態の検証環境が立ち上がる。
+Docker があれば、次の2コマンドで**動作確認できる状態のECサイトごと**立ち上がる。
+WordPress・Welcart・本プラグイン・動作確認用テーマ・商品25点・割引ルール2段が
+すべて設定済みの状態になる。
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build
 ./docker/setup.sh
 ```
 
-完了すると以下が使える状態になる（初回のビルドに数分かかる）。
-
 | | |
 | --- | --- |
 | サイト | http://localhost:8080 |
 | 管理画面 | http://localhost:8080/wp-admin/（`admin` / `admin`） |
 | 割引設定 | http://localhost:8080/wp-admin/admin.php?page=wcd_settings |
+
+初期の割引ルールは課題文の例（10,000円以上で500円引き／30,000円以上で2,000円引き）を
+入れてある。サイトの商品をカートに入れるとしきい値到達で自動割引が適用される。
 
 8080 番が使用中の場合は `WP_PORT` で変更できる。
 
@@ -136,28 +138,52 @@ WP_PORT=8090 docker compose -f docker/docker-compose.yml up -d --build
 WP_PORT=8090 ./docker/setup.sh
 ```
 
-商品は登録されていないため、動作確認には管理画面の
-「Welcart Shop > 新規商品追加」から商品を1点以上追加する必要がある。
+初回はイメージのビルドに数分かかる。
 
 ### 2コマンドが何をしているか
 
 - **`docker/Dockerfile`** … 公式 `wordpress:6.6-php8.2-apache` イメージに、
-  wordpress.org から取得した Welcart（`usc-e-shop` **2.12.1** 固定）を同梱する。
-  配置先を `/var/www/html` ではなく `/usr/src/wordpress/wp-content/plugins/` に
+  wordpress.org から取得した Welcart（`usc-e-shop` **2.12.1** 固定）と、
+  動作確認用テーマ（`docker/theme/welcart-shop-theme`）を同梱する。
+  配置先を `/var/www/html` ではなく `/usr/src/wordpress/wp-content/` 配下に
   しているのは、公式イメージの `docker-entrypoint.sh` が初回起動時に
   `/usr/src/wordpress` を `/var/www/html` へ展開する作りのため
   （`/var/www/html` は名前付きボリュームでマスクされるので残らない）。
   entrypoint はプラグイン・テーマを「差し替え可能な内容」として扱い、
   展開先に既に存在する場合はスキップするので、ボリュームを残したまま
-  再起動しても既存の Welcart を上書きしない。
-- **`docker/setup.sh`** … WP-CLI で `wp core install`、日本語言語パックの導入、
-  `usc-e-shop` と `welcart-cart-discount` の有効化、Welcart の日本向け設定
-  （通貨・表示言語・住所形式・対象国・配送方法）を行う。**冪等**で、
-  何度実行しても同じ結果になる。
+  再起動しても既存の Welcart / テーマを上書きしない。
+- **`docker/setup.sh`** … WP-CLI で以下を行う。**冪等**で、何度実行しても
+  同じ結果になる。
+  - `wp core install` と日本語言語パックの導入
+  - `usc-e-shop` / `welcart-cart-discount` の有効化、テーマの有効化
+  - Welcart の日本向け設定（通貨・表示言語・住所形式・対象国・配送方法）
+  - `docker/seed-items.php` による動作確認用の商品25点の投入
+  - 割引ルールの初期値の設定（未設定の場合のみ）
 
 本プラグイン自体は `docker-compose.yml` の bind mount により
 `wp-content/plugins/welcart-cart-discount` としてマウントされる
 （リポジトリ直下がそのままプラグインディレクトリになる）。
+
+### 動作確認用テーマについて
+
+`docker/theme/welcart-shop-theme` は**提出物ではなく検証環境の一部**である。
+本プラグインは Welcart のカート系フィルタに接続するだけでテーマに依存しないため、
+**どのテーマでも動作する**（デフォルトテーマでも割引は適用される）。
+実際の購買導線に近い見た目で動作確認・スクリーンショット取得を行うために用意した。
+
+テーマ側も Welcart 本体のファイルは一切改変していない。カート導線6画面は
+`usc-e-shop/templates/cart/*.php` を `include` してロジックをそのまま流用し、
+CSS のみで装飾している。
+
+### テーマを編集しながら確認する場合
+
+テーマはイメージに焼き込んでいるため、編集して再ビルドしても既存ボリュームには
+反映されない（entrypoint が既存テーマをスキップするため）。編集を即座に
+反映させたい場合は `docker/compose.dev.yml` を重ねて bind mount する。
+
+```bash
+docker compose -f docker/docker-compose.yml -f docker/compose.dev.yml up -d
+```
 
 ### Welcart の既定値についての補足
 
@@ -185,6 +211,36 @@ composer install
 composer test   # PHPUnit
 composer lint   # PHP_CodeSniffer（WPCS）
 ```
+
+## ディレクトリ構成
+
+```
+welcart-cart-discount/          ← このディレクトリがそのままプラグインになる
+├── welcart-cart-discount.php   プラグインのエントリポイント
+├── includes/                   プラグイン本体
+│   ├── class-wcd-rule.php            1段の割引ルール（しきい値・割引額）
+│   ├── class-wcd-calculator.php      小計から適用段を決める計算
+│   ├── class-wcd-settings.php        設定の正規化・保存・読み出し
+│   ├── class-wcd-cart-row-builder.php カート表に挿す割引行の組み立て
+│   ├── class-wcd-integration.php     Welcart のフックへの接続
+│   ├── class-wcd-admin.php           管理画面
+│   └── class-wcd-plugin.php          フック登録
+├── languages/                  翻訳ファイル（i18n）
+├── tests/                      PHPUnit（WordPress 非依存の単体テスト）
+├── docs/                       提出用ドキュメント（設計メモ・AI活用レポート等）
+├── docker/                     検証環境（提出物ではない）
+│   ├── Dockerfile              Welcart とテーマを同梱したイメージ
+│   ├── docker-compose.yml
+│   ├── compose.dev.yml         テーマ編集用の bind mount 追加設定
+│   ├── setup.sh                初期化スクリプト（冪等）
+│   ├── seed-items.php          動作確認用の商品25点投入
+│   └── theme/welcart-shop-theme/  動作確認用テーマ
+├── composer.json / phpcs.xml.dist
+└── .gitlab-ci.yml
+```
+
+`docker/` 以下は検証環境用であり、プラグインの動作には不要
+（実サイトへ配置する際は `docker/` `tests/` `vendor/` を除外してよい）。
 
 ## ドキュメント
 

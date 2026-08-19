@@ -1,0 +1,22 @@
+# テーマを編集しながら確認するための追加設定（開発用）。
+#
+# 通常は docker/Dockerfile でテーマをイメージに焼き込んでいる。この方式は
+# クローン直後にそのまま動く利点がある一方、公式イメージの entrypoint が
+# 「展開先に既に存在するテーマはスキップする」挙動のため、テーマを編集して
+# 再ビルドしても既存ボリュームには反映されない。
+#
+# このファイルを重ねると、イメージ内のテーマの上にホスト側のディレクトリを
+# bind mount するため、編集が即座に反映される（再ビルド不要）。
+#
+#   docker compose -f docker/docker-compose.yml -f docker/compose.dev.yml up -d
+#
+# 提出物の検証だけが目的であればこのファイルは不要。
+
+services:
+  wordpress:
+    volumes:
+      - ./theme/welcart-shop-theme:/var/www/html/wp-content/themes/welcart-shop-theme
+
+  wpcli:
+    volumes:
+      - ./theme/welcart-shop-theme:/var/www/html/wp-content/themes/welcart-shop-theme

@@ -39,6 +39,17 @@ lint:
   script:
     - composer lint
 
+# 検証環境（docker/ 配下の動作確認用テーマとセットアップスクリプト）の規約チェック。
+# 提出物ではないが、リポジトリに含まれるコードなので同じ基準で検証する。
+# プラグイン本体とは別のルールセットにしているのは、Welcart 本体が
+# ファイル名・変数名をハードコードで探す箇所があり、テーマ側では
+# 一部の命名規則スニフを除外する必要があるため（docker/phpcs.xml.dist のコメント参照）。
+lint:env:
+  extends: .php82
+  stage: lint
+  script:
+    - composer lint:env
+
 test:
   extends: .php82
   stage: test

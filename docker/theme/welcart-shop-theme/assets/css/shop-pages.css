@@ -1,0 +1,1408 @@
+/*
+ * カート導線6画面（カート / 客情報 / 配送・支払 / 確認 / 完了 / エラー）の装飾。
+ *
+ * これらの画面のマークアップは Welcart 本体の templates/cart/*.php が出力する。
+ * テーマ側の wc_templates/cart/*.php は本体テンプレートを require して
+ * header/footer で包むだけで、マークアップ自体は変更していない。
+ *
+ * ■ 本体CSSを読み込まない前提で書いている
+ * functions.php で usces_cart.css を dequeue しているため、このファイルが
+ * カート導線の装飾の唯一の出所である。列幅・フォーム・ボタン・余白まで
+ * すべてここで明示する必要がある（本体CSSの既定値に頼れない）。
+ *
+ * 以前は本体CSSを読み込んだ上で上書きする方式だったが、本体は `#cart th`
+ * のようなIDセレクタを78個持ち、クラスセレクタで書いた本テーマの指定が
+ * 構造的に勝てなかった。見た目の崩れに気づいた箇所だけ !important や
+ * #cart_table を足して個別に打ち消していたため、気づいていない箇所は
+ * 負けたまま残り、実測で29件の指定が無効になっていた
+ * （ステップナビの文字切れ、ボタン上部の黄色い罫線など）。
+ * 打ち消しを積み増す方式をやめ、読み込み自体を止める方針に変更した。
+ *
+ * ■ セレクタは実物のDOMから採取している
+ * 過去にモックアップからコピーした存在しないクラス名（.item-detail__cta、
+ * .total_items_price、.to_confirm_button の子要素扱いなど）を書いて
+ * 一度も一致していなかった不具合を繰り返したため、本ファイルのセレクタは
+ * 本体テンプレートの実ソースから採取した。採取元をコメントで示す。
+ */
+
+/* ============================================================
+   ページ共通
+   ============================================================ */
+
+.wcd-shop-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+/*
+ * 本体テンプレートが出力する見出し。
+ * customer_info.php は h5 を2つ、confirm.php は h3 を2つ、
+ * completion.php は h3、error.php は h2 を出力する。
+ * 見出しレベルが画面ごとに違うので、レベルではなく「セクション見出し」
+ * として同じ扱いに揃える。
+ */
+/*
+ * 以下、ラベル類の字送り・文字サイズは日本語表示を前提に調整している。
+ *
+ * カート導線の文言は Welcart 本体が出力し、その言語は Welcart 独自の
+ * 「フロント側の使用言語」設定（usces['system']['front_lang']）で決まる。
+ * 検証環境ではこれを 'ja' にしているため、ラベルはすべて日本語になる。
+ * 当初この設定が既定の 'en' だったため英語表示になっており、CSS側も
+ * 欧文の小さな大文字（text-transform: uppercase + 広い letter-spacing）
+ * を前提に組んでいた。日本語では字間が空きすぎ、10px前後では漢字が
+ * 潰れて読みにくくなるため、uppercase を外し字送りを詰め、
+ * 文字サイズを一段上げている。
+ */
+.wcd-shop-page h2,
+.wcd-shop-page h3,
+.wcd-shop-page h5 {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin: 40px 0 16px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--color-text);
+}
+
+.wcd-shop-page h2:first-child,
+.wcd-shop-page h3:first-child,
+.wcd-shop-page h5:first-child {
+  margin-top: 0;
+}
+
+/* 中身が空のときに余白だけが残るのを防ぐ（本体は常にこの器を出力する） */
+.wcd-shop-page .header_explanation:empty,
+.wcd-shop-page .footer_explanation:empty,
+.wcd-shop-page .error_message:empty {
+  display: none;
+}
+
+.wcd-shop-page .header_explanation,
+.wcd-shop-page .footer_explanation {
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--color-text-muted);
+}
+
+.wcd-shop-page .error_message {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 14px 18px;
+  margin: 0 0 24px;
+}
+
+/* 本体が入力エラー箇所に付ける印（#delivery-info .customer_form em 等） */
+.wcd-shop-page .customer_form em {
+  font-style: normal;
+  color: var(--color-accent);
+}
+
+/* ============================================================
+   ステップナビ（div.usccart_navi > ol.ucart > li.ucart）
+   採取元: templates/cart/cart.php:12-19
+   現在ステップだけ usccart_cart / usccart_customer /
+   usccart_delivery / usccart_confirm が付く。
+   ============================================================ */
+
+.wcd-shop-page .usccart_navi {
+  margin: 0 0 40px;
+}
+
+.wcd-shop-page ol.ucart {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-text);
+}
+
+/*
+ * 親の <ol> と子の <li> が同じ "ucart" クラスを共有しているため、
+ * 要素名で明示的に区別する。
+ */
+.wcd-shop-page ol.ucart li.ucart {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 12px 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #a5a5a5;
+  border-top: 3px solid transparent;
+  margin-top: -1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 現在のステップ。オレンジの上罫線＋濃い文字で位置を示す */
+.wcd-shop-page ol.ucart li.usccart_cart,
+.wcd-shop-page ol.ucart li.usccart_customer,
+.wcd-shop-page ol.ucart li.usccart_delivery,
+.wcd-shop-page ol.ucart li.usccart_confirm {
+  color: var(--color-text);
+  border-top-color: var(--color-accent);
+}
+
+/* ============================================================
+   カート画面のコンテナ（#inside-cart / #cart）
+   ============================================================ */
+
+.wcd-shop-page #inside-cart,
+.wcd-shop-page #customer-info,
+.wcd-shop-page #delivery-info,
+.wcd-shop-page #info-confirm,
+.wcd-shop-page #error-page {
+  background: var(--color-surface);
+  padding: 40px;
+}
+
+/* 数量更新の案内文とボタン（div.upbutton / 採取元: cart.php:34） */
+.wcd-shop-page .upbutton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 0 28px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+   明細テーブル（#cart_table。カート画面と確認画面で共用）
+   採取元: cart.php:38-49（thead 8列）, cart.php:55-66（tfoot）
+          confirm.php:54-60（確認画面は7列）
+   罫線は横方向のみにして、表計算ソフト的な格子を避ける。
+   ============================================================ */
+
+.wcd-shop-page #cart_table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+/*
+ * 列幅。本体CSSを読み込まなくなったため自前で指定する。
+ * 商品名列（productname）だけ幅を指定せず、残り幅を吸収させる。
+ */
+.wcd-shop-page #cart_table .num { width: 44px; }
+.wcd-shop-page #cart_table .thumbnail { width: 96px; }
+.wcd-shop-page #cart_table .unitprice { width: 112px; }
+.wcd-shop-page #cart_table .quantity { width: 96px; }
+.wcd-shop-page #cart_table .subtotal { width: 132px; }
+.wcd-shop-page #cart_table .stock { width: 104px; }
+.wcd-shop-page #cart_table .action { width: 104px; }
+
+.wcd-shop-page #cart_table thead th {
+  padding: 0 12px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-text);
+}
+
+.wcd-shop-page #cart_table thead th.num,
+.wcd-shop-page #cart_table thead th.quantity,
+.wcd-shop-page #cart_table thead th.stock {
+  text-align: center;
+}
+
+.wcd-shop-page #cart_table thead th.unitprice,
+.wcd-shop-page #cart_table thead th.subtotal {
+  text-align: right;
+}
+
+/* 本体が付ける税表記の小さな注記（usces_guid_tax()） */
+.wcd-shop-page #cart_table thead th .tax {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.wcd-shop-page #cart_table tbody td {
+  padding: 20px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wcd-shop-page #cart_table tbody td.num {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.wcd-shop-page #cart_table td.thumbnail {
+  padding: 12px;
+}
+
+.wcd-shop-page #cart_table td.thumbnail img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}
+
+.wcd-shop-page #cart_table td.productname {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  text-align: left;
+}
+
+/* 商品コード等を本体が <br> で続けて出すため、控えめな行として見せる */
+.wcd-shop-page #cart_table td.productname .sku_name,
+.wcd-shop-page #cart_table td.productname .itemcode {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.wcd-shop-page #cart_table td.unitprice,
+.wcd-shop-page #cart_table td.subtotal {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.wcd-shop-page #cart_table td.subtotal {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.wcd-shop-page #cart_table td.quantity {
+  text-align: center;
+}
+
+/*
+ * 数量欄。JSが有効な場合は assets/js/cart-quantity-stepper.js が
+ * この input を .wcd-stepper で包み、− / + ボタンを両側に追加する。
+ * JSが無効な場合はこの input が単体で残る（従来どおり更新ボタンで更新する）。
+ */
+.wcd-shop-page #cart_table input.quantity {
+  width: 44px;
+  padding: 9px 4px;
+  font-size: 13px;
+  text-align: center;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.wcd-shop-page #cart_table .wcd-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.wcd-shop-page #cart_table .wcd-stepper__button {
+  width: 30px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.wcd-shop-page #cart_table .wcd-stepper__button:hover:not(:disabled) {
+  color: var(--color-accent-text);
+  background: var(--color-accent);
+}
+
+/* 上限（在庫数・注文数制限）と下限（1）に達したボタンは押せないことを示す */
+.wcd-shop-page #cart_table .wcd-stepper__button:disabled {
+  color: #c8c8c8;
+  cursor: default;
+}
+
+/* 更新のための再読み込み中は操作できないことを示す */
+.wcd-shop-page #cart_table.is-updating {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/*
+ * 自動更新が有効なときの案内文と更新ボタン。
+ * 「数量を変更した場合は必ず更新ボタンを押してください。」という案内は
+ * 自動更新される状態では誤りになるため、JSが動作した場合のみ隠す
+ * （このクラスは cart-quantity-stepper.js が付与する）。
+ */
+.wcd-shop-page .upbutton.wcd-upbutton--auto {
+  display: none;
+}
+
+.wcd-shop-page #cart_table td.stock {
+  text-align: center;
+  font-size: 12px;
+  color: #2a8f4d;
+  white-space: nowrap;
+}
+
+/* 在庫切れ等に本体が付けるクラス（#cart td.signal_red 相当） */
+.wcd-shop-page #cart_table td.signal_red {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.wcd-shop-page #cart_table td.action {
+  text-align: center;
+}
+
+/* 削除ボタンは破壊的操作のため、主要ボタンより明確に控えめにする */
+.wcd-shop-page #cart_table input.delButton {
+  padding: 8px 16px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.wcd-shop-page #cart_table input.delButton:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* ------------------------------------------------------------
+   明細テーブルのフッター（合計・割引）
+   3段階の強弱をつける:
+     1. 小計（Items Total）… 太い上罫線＋黒文字
+     2. 割引額            … 控えめなラベル＋オレンジの金額
+     3. 最終合計          … 黒帯＋オレンジの金額（最も強い）
+   ------------------------------------------------------------ */
+
+.wcd-shop-page #cart_table tfoot th,
+.wcd-shop-page #cart_table tfoot td {
+  padding: 14px 12px;
+  text-align: right;
+  white-space: nowrap;
+  border: none;
+}
+
+/*
+ * 小計行。カート画面（cart.php:56-64）のこの行には class が無いため、
+ * 位置で指定する。過去に `tfoot tr.total_items_price` と書いていたが、
+ * そのクラスは確認画面（confirm.php:54）にしか存在せず、カート画面では
+ * 一度も一致していなかった（灰色の帯のまま残っていた原因）。
+ */
+.wcd-shop-page #cart_table tfoot tr:first-child th {
+  padding-top: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  border-top: 2px solid var(--color-text);
+}
+
+.wcd-shop-page #cart_table tfoot tr:first-child th.subtotal,
+.wcd-shop-page #cart_table tfoot tr:first-child th.totalend {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/*
+ * welcart-cart-discount プラグインが挿入する行。
+ * プラグイン側（WCD_Cart_Row_Builder）が挿入先テーブルの列構成に
+ * 合わせた正しいセル数・colspan で出力するため、ここでは配色だけ与える。
+ */
+.wcd-shop-page #cart_table tr.wcd-discount-row td {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.wcd-shop-page #cart_table tr.wcd-discount-row td.subtotal,
+.wcd-shop-page #cart_table tr.wcd-discount-row td.totalend {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.wcd-shop-page #cart_table tr.wcd-discounted-total-row td {
+  padding-top: 18px;
+  padding-bottom: 18px;
+  background: var(--color-nav-bg);
+  color: var(--color-nav-text);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.wcd-shop-page #cart_table tr.wcd-discounted-total-row td.subtotal,
+.wcd-shop-page #cart_table tr.wcd-discounted-total-row td.totalend {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--color-accent);
+}
+
+/*
+ * 確認画面のフッター行（confirm.php:54-128）。
+ * tr.discount は Welcart 本体が usces_order_discount フィルタの結果を
+ * 表示する行で、本プラグインの割引額もここに合算されて出る。
+ */
+.wcd-shop-page #cart_table tr.discount td,
+.wcd-shop-page #cart_table tr.shipping_charge td,
+.wcd-shop-page #cart_table tr.cod_fee td,
+.wcd-shop-page #cart_table tr.tax td,
+.wcd-shop-page #cart_table tr.usedpoint td {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.wcd-shop-page #cart_table tr.shipping_charge td.totalend,
+.wcd-shop-page #cart_table tr.cod_fee td.totalend,
+.wcd-shop-page #cart_table tr.tax td.totalend {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/*
+ * 割引額とポイント利用額。
+ * 本体は該当セルに style="color:#FF0000" をインラインで直書きしている
+ * （採取元: confirm.php:66, :84, :118）。インラインスタイルは外部CSSに
+ * 優先するため、そのままだと確認画面だけ割引額が原色の赤で表示され、
+ * カート画面のオレンジ（サイトのアクセント色）と食い違っていた。
+ * 本体テンプレートを改変しない方針のため !important で打ち消す。
+ */
+.wcd-shop-page #cart_table tr.discount td.totalend,
+.wcd-shop-page #cart_table tr.usedpoint td.totalend {
+  font-weight: 700;
+  color: var(--color-accent) !important;
+}
+
+/* 確認画面の最終合計行（tr.total_full_price）。カートの割引後合計と同じ強さに揃える */
+.wcd-shop-page #cart_table tr.total_full_price th,
+.wcd-shop-page #cart_table tr.total_full_price td {
+  padding-top: 18px;
+  padding-bottom: 18px;
+  background: var(--color-nav-bg);
+  color: var(--color-nav-text);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.wcd-shop-page #cart_table tr.total_full_price .totalend {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--color-accent);
+}
+
+/*
+ * 通貨表記（div.currency_code）。
+ * 出力位置が画面によって違う点に注意する。
+ *   カート画面: 表の直後（採取元: cart.php:69）
+ *   確認画面  : 表の直前、#cart の先頭（採取元: confirm.php:31-32）
+ * 表の後ろに置かれる前提で margin-top だけ与えていたため、
+ * 確認画面では見出し行の真上に重なるように見えていた。
+ */
+.wcd-shop-page .currency_code {
+  margin-top: 14px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+.wcd-shop-page--confirm .currency_code {
+  margin: 0 0 18px;
+}
+
+/* カートが空のとき（div.no_cart / 採取元: cart.php:81） */
+.wcd-shop-page .no_cart {
+  padding: 72px 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+/* ============================================================
+   フォーム（客情報 table.customer_form / 配送 #delivery_table）
+   採取元: customer_info.php, delivery_info.php
+   本体CSSが持っていた入力欄の幅指定（#customer-info .customer_form
+   input { width:50% } 等）も読み込まなくなったため自前で指定する。
+   ============================================================ */
+
+.wcd-shop-page table.customer_form,
+.wcd-shop-page #delivery_table,
+.wcd-shop-page #notes_table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wcd-shop-page table.customer_form th,
+.wcd-shop-page #delivery_table th,
+.wcd-shop-page #notes_table th {
+  width: 220px;
+  padding: 16px 16px 16px 0;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wcd-shop-page table.customer_form td,
+.wcd-shop-page #delivery_table td,
+.wcd-shop-page #notes_table td {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/*
+ * フォームの最終行の下罫線を消す。
+ * これらのテーブルの直後には div.send（上罫線を持つ）が続くため、
+ * 最終行の下罫線と .send の上罫線が隣接し、罫線が二重に見えていた
+ * （配送・支払画面のスクリーンショットで発覚）。
+ */
+.wcd-shop-page table.customer_form tr:last-child th,
+.wcd-shop-page table.customer_form tr:last-child td,
+.wcd-shop-page #delivery_table tr:last-child th,
+.wcd-shop-page #delivery_table tr:last-child td,
+.wcd-shop-page #notes_table tr:last-child th,
+.wcd-shop-page #notes_table tr:last-child td,
+.wcd-shop-page #confirm_table tr:last-child th,
+.wcd-shop-page #confirm_table tr:last-child td {
+  border-bottom: none;
+}
+
+.wcd-shop-page .customer_form input[type="text"],
+.wcd-shop-page .customer_form input[type="email"],
+.wcd-shop-page .customer_form input[type="tel"],
+.wcd-shop-page .customer_form input[type="password"],
+.wcd-shop-page .customer_form select,
+.wcd-shop-page .customer_form textarea,
+.wcd-shop-page #delivery_table input[type="text"],
+.wcd-shop-page #delivery_table select,
+.wcd-shop-page #notes_table textarea,
+.wcd-shop-page .notes {
+  width: 100%;
+  max-width: 420px;
+  padding: 11px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.wcd-shop-page .customer_form input[type="text"]:focus,
+.wcd-shop-page .customer_form input[type="email"]:focus,
+.wcd-shop-page .customer_form input[type="password"]:focus,
+.wcd-shop-page .customer_form select:focus,
+.wcd-shop-page #delivery_table input[type="text"]:focus,
+.wcd-shop-page #delivery_table select:focus {
+  outline: none;
+  border-color: var(--color-text);
+}
+
+/*
+ * tr.inp1 は姓・名（および フリガナ）を1行に2欄並べる行。
+ * 採取元: functions/template_func.php:4547（id="name_row" class="inp1"）,
+ *        同:4557（id="furikana_row" class="inp1"）
+ * 2欄が横に並ぶため1欄あたりの幅を絞る。
+ *
+ * tr.inp2 は市区町村（id="address1_row"）で入力欄は1つしかない
+ * （採取元: functions/template_func.php:4585）。
+ * 当初 inp1 と inp2 をまとめて絞っていたため、市区町村だけが
+ * 他の住所欄より不自然に短くなっていた。inp1 のみを対象にする。
+ */
+.wcd-shop-page .customer_form tr.inp1 input,
+.wcd-shop-page #delivery_table tr.inp1 input {
+  width: auto;
+  max-width: 200px;
+}
+
+/*
+ * パスワード欄は本体テンプレートが style="width:100px" を
+ * インラインで直接付けている（採取元: templates/cart/customer_info.php:77）。
+ * インラインスタイルは外部CSSに優先するため、他の入力欄と幅を揃えるには
+ * !important が必要になる。本体テンプレートを改変しない方針のため、
+ * ここだけ例外的に !important を使う。
+ */
+.wcd-shop-page .customer_form input[type="password"] {
+  width: 100% !important;
+}
+
+/* チェックボックス・ラジオは幅指定の対象外にする */
+.wcd-shop-page .customer_form input[type="checkbox"],
+.wcd-shop-page .customer_form input[type="radio"] {
+  width: auto;
+  margin-right: 6px;
+}
+
+.wcd-shop-page .customer_form label.iopt_label {
+  display: block;
+  margin: 4px 0;
+}
+
+.wcd-shop-page #notes_table textarea,
+.wcd-shop-page .notes {
+  max-width: 100%;
+  min-height: 120px;
+  line-height: 1.7;
+}
+
+/*
+ * 会員登録・パスワード再発行への導線。
+ * これらのクラスは <a> 要素自身に付いており、器は <p id="nav"> である
+ * （採取元: templates/cart/customer_info.php:45-48）。
+ * 当初 `.newmember a` のように「器のクラス」と誤って推測していたため
+ * 一度も一致していなかった。
+ */
+.wcd-shop-page p#nav {
+  margin: 14px 0 0;
+  font-size: 12px;
+}
+
+.wcd-shop-page a.newmember,
+.wcd-shop-page a.lostpassword {
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wcd-shop-page a.newmember:hover,
+.wcd-shop-page a.lostpassword:hover {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* ============================================================
+   確認画面の受注内容テーブル（#confirm_table）と
+   ポイント利用テーブル（#point_table）
+   採取元: confirm.php
+   ============================================================ */
+
+/*
+ * 受注内容テーブルは明細テーブル（#cart_table）の直後に置かれる。
+ * 明細の最終行は黒帯（総合計金額）なので、余白が無いと黒帯と
+ * 最初のセクション見出しが接して見える。上に余白を確保する。
+ */
+.wcd-shop-page #confirm_table {
+  width: 100%;
+  margin-top: 44px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wcd-shop-page #confirm_table th {
+  width: 220px;
+  padding: 14px 16px 14px 0;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wcd-shop-page #confirm_table td {
+  padding: 14px 0;
+  line-height: 1.8;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/*
+ * 受注内容の区切り（「Customer Information」「Others」等）は
+ * <tr class="ttl"><td colspan="2"><h3>…</h3></td></tr> として出力される
+ * （採取元: confirm.php:161-162, :172）。
+ * 本体CSSはここに薄い黄色の背景（#FFFFEF）を敷いていたが、読み込みを
+ * 止めたため無装飾になり、通常の明細行と区別が付かなくなっていた。
+ * セクションの区切りとして明示的に強調する。
+ */
+.wcd-shop-page #confirm_table tr.ttl td,
+.wcd-shop-page #confirm_table td.ttl {
+  padding: 34px 0 10px;
+  border-bottom: 1px solid var(--color-text);
+}
+
+.wcd-shop-page #confirm_table tr.ttl:first-child td,
+.wcd-shop-page #confirm_table tr:first-child td.ttl {
+  padding-top: 0;
+}
+
+.wcd-shop-page #confirm_table h3 {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+}
+
+.wcd-shop-page #point_table {
+  width: 100%;
+  max-width: 420px;
+  margin: 24px 0;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wcd-shop-page #point_table td {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wcd-shop-page #point_table .point {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.wcd-shop-page #point_table input.used_point {
+  width: 110px;
+  padding: 9px 12px;
+  text-align: right;
+  border: 1px solid var(--color-border);
+}
+
+/* ============================================================
+   ボタン
+   クラス名はすべて本体のソースから採取した。
+   採取元: functions/function.php:2930-2938（カート）,
+          functions/function.php:2952-2960（客情報）,
+          templates/cart/delivery_info.php:100-101（配送）,
+          includes/purchase_button.php（確認）,
+          templates/cart/completion.php:32（完了）
+   ============================================================ */
+
+.wcd-shop-page .send {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 36px;
+  padding-top: 28px;
+  border-top: 1px solid var(--color-border);
+}
+
+/*
+ * 主要ボタン（各ステップで先に進むアクション）。
+ *
+ * 会員ログインの「Next」は本体が class を付けずに出力するため
+ * name 属性で拾う（採取元: templates/cart/customer_info.php:49
+ * `<div class="send"><input name="customerlogin" type="submit" ...>`）。
+ * クラス指定だけで書いていたときは、この1つだけブラウザ既定の
+ * 灰色ボタン（実測43x22px）のまま取り残されていた。
+ */
+.wcd-shop-page input.to_customerinfo_button,
+.wcd-shop-page input.to_deliveryinfo_button,
+.wcd-shop-page input.to_confirm_button,
+.wcd-shop-page input.checkout_button,
+.wcd-shop-page input[name="upButton"],
+.wcd-shop-page input[name="customerlogin"],
+.wcd-shop-page a.back_to_top_button {
+  display: inline-block;
+  padding: 16px 44px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-accent-text);
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.wcd-shop-page input.to_customerinfo_button:hover,
+.wcd-shop-page input.to_deliveryinfo_button:hover,
+.wcd-shop-page input.to_confirm_button:hover,
+.wcd-shop-page input.checkout_button:hover,
+.wcd-shop-page input[name="upButton"]:hover,
+.wcd-shop-page input[name="customerlogin"]:hover,
+.wcd-shop-page a.back_to_top_button:hover {
+  color: var(--color-accent-text);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+
+/*
+ * 副次ボタン（戻る・買い物を続ける・ポイント利用・入会して次へ）。
+ *
+ * 「入会して次へ進む」（to_reganddeliveryinfo_button）は当初主要ボタンと
+ * 同じ塗りつぶしオレンジにしていたが、同じ .send の中で「次へ」と
+ * 並ぶため主要アクションが2つあるように見え、どちらを押すべきか
+ * 判断できない状態だった。標準の導線は「次へ」であり、入会は
+ * 任意の分岐なので副次扱いに変更した。
+ */
+.wcd-shop-page input.continue_shopping_button,
+.wcd-shop-page a.continue_shopping_button,
+.wcd-shop-page input.back_cart_button,
+.wcd-shop-page input.back_to_customer_button,
+.wcd-shop-page input.back_to_delivery_button,
+.wcd-shop-page input.to_reganddeliveryinfo_button,
+.wcd-shop-page input.use_point_button {
+  display: inline-block;
+  padding: 16px 32px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.wcd-shop-page input.continue_shopping_button:hover,
+.wcd-shop-page a.continue_shopping_button:hover,
+.wcd-shop-page input.back_cart_button:hover,
+.wcd-shop-page input.back_to_customer_button:hover,
+.wcd-shop-page input.back_to_delivery_button:hover,
+.wcd-shop-page input.to_reganddeliveryinfo_button:hover,
+.wcd-shop-page input.use_point_button:hover {
+  border-color: var(--color-text);
+}
+
+/* 数量更新ボタンは案内文の右側に置かれ、明細より前面に出したくないため小さめにする */
+.wcd-shop-page .upbutton input[name="upButton"] {
+  flex-shrink: 0;
+  padding: 12px 28px;
+  font-size: 12px;
+}
+
+/* ============================================================
+   完了 / エラー画面
+   採取元: completion.php（h3 + div.post + div.send > a.back_to_top_button）,
+          error.php（#error-page > h2 + div.post）
+   ============================================================ */
+
+.wcd-shop-page--completion,
+.wcd-shop-page--error {
+  max-width: 720px;
+}
+
+.wcd-shop-page--completion h3,
+.wcd-shop-page--error h2 {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--color-text);
+  text-align: center;
+  margin: 0 0 28px;
+  padding: 0;
+  border: none;
+}
+
+.wcd-shop-page .post {
+  background: var(--color-surface);
+  padding: 48px 40px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.wcd-shop-page .post .send {
+  justify-content: center;
+}
+
+/* エラー画面は #error-page 自体が器になるため .post の背景は重ねない */
+.wcd-shop-page #error-page .post {
+  padding: 0;
+  background: transparent;
+}
+
+/* ============================================================
+   会員ページ（ログイン / 新規入会 / 会員情報編集 / 購入履歴 /
+   パスワード変更・再発行 / 各完了画面）
+   採取元: usc-e-shop/templates/member/*.php
+           （login.php, member_form.php, member.php, lostpassword.php,
+             changepassword.php, completion.php, verifying.php,
+             member_verifying.php。いずれも器は #memberpages）
+
+   これらの画面は Welcart 本体が the_content に流し込み、テーマ側は
+   index.php（main.wcd-shop-page）で描画している。テンプレートは
+   上書きしていない。
+
+   本体CSS（usces_cart.css）には #memberpages 系のルールが含まれていたため、
+   読み込みを止めた結果これらの画面が完全に無装飾になっていた
+   （会員ログイン画面の実機確認で発覚）。カート導線の装飾を自前で持つ
+   方針にした以上、会員ページの装飾もここで持つ必要がある。
+
+   .customer_form / .post / .send / a.back_to_top_button /
+   .error_message / .header_explanation は上の定義を共用する。
+   ============================================================ */
+
+/* index.php が出力するページタイトル */
+.wcd-shop-page > article > h1 {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.5vw, 38px);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  margin: 0 0 32px;
+}
+
+#memberpages {
+  background: var(--color-surface);
+  padding: 40px;
+}
+
+/*
+ * 幅を絞るのはログイン・パスワード再発行のフォームだけにする。
+ * .whitebox は login.php / lostpassword.php / member.php が共用する器なので、
+ * ここに max-width を付けるとマイページ全体まで狭まり、「入会日」等の
+ * 値が3行に折り返していた（実機のスクリーンショットで発覚）。
+ * 入力フォームの器である .loginbox 側に付ける。
+ */
+#memberpages .loginbox {
+  max-width: 460px;
+}
+
+#memberpages .loginbox p,
+#memberpages #loginform p {
+  margin: 0 0 18px;
+}
+
+#memberpages label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+/* 「ログイン情報を記憶」はチェックボックスとラベルを横並びにする */
+#memberpages .forgetmenot label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+}
+
+#memberpages input.loginmail,
+#memberpages input.loginpass,
+#memberpages input[type="text"],
+#memberpages input[type="email"],
+#memberpages input[type="password"] {
+  width: 100%;
+  max-width: 420px;
+  padding: 11px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+#memberpages input[type="checkbox"],
+#memberpages input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
+#memberpages input[type="text"]:focus,
+#memberpages input[type="email"]:focus,
+#memberpages input[type="password"]:focus {
+  outline: none;
+  border-color: var(--color-text);
+}
+
+/*
+ * ログイン・登録などの実行ボタン。
+ * login.php / lostpassword.php / changepassword.php の送信ボタンは
+ * id="member_login"（クラスではなくID）、新規入会は name="regmember"。
+ * カート導線側の会員ログイン（name="customerlogin"）と同じく
+ * クラスが付かないものがあるため、ID と name で拾う。
+ */
+#memberpages #member_login,
+#memberpages input[name="regmember"],
+#memberpages input[name="memberinfo"],
+#memberpages input[type="submit"] {
+  display: inline-block;
+  padding: 16px 44px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--color-accent-text);
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+#memberpages #member_login:hover,
+#memberpages input[type="submit"]:hover {
+  color: var(--color-accent-text);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+
+/* 退会・戻る等はページ内の主要アクションではないため控えめにする */
+#memberpages input[name="delmember"],
+#memberpages input[name="backto"],
+#memberpages input.back_to_top_button {
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border);
+}
+
+#memberpages input[name="delmember"]:hover,
+#memberpages input[name="backto"]:hover {
+  background: transparent;
+  border-color: var(--color-text);
+}
+
+/* パスワード再発行・新規入会などへのリンク（p#nav / p.nav） */
+#memberpages #nav,
+#memberpages .nav {
+  margin: 18px 0 0;
+  font-size: 12px;
+}
+
+#memberpages #nav a,
+#memberpages .nav a {
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+#memberpages #nav a:hover,
+#memberpages .nav a:hover {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* 会員ページのサブメニュー（会員情報編集 / 購入履歴 / ログアウト） */
+#memberpages .member_submenu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  list-style: none;
+  margin: 0 0 32px;
+  padding: 0 0 16px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#memberpages .member_submenu a {
+  color: var(--color-text-muted);
+}
+
+#memberpages .member_submenu a:hover {
+  color: var(--color-accent);
+}
+
+/* 購入履歴などの一覧表 */
+#memberpages table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+/*
+ * #memberdetail は「ラベル / 値」を横に並べたペア構成の表であり、
+ * 縦にラベル列が並ぶ構成ではない（採取元: templates/member/member.php:16-43。
+ * 1行が th, td, td.blank_cell, th, td という並び）。
+ * そのため th だけ濃い罫線にすると、ラベルの下だけに短い黒線が並んで
+ * 崩れて見える（実機のスクリーンショットで発覚）。罫線は行の区切りとして
+ * th / td で同じ薄さに統一し、ラベルは文字色の差だけで区別する。
+ */
+#memberpages #memberdetail th,
+#memberpages #memberdetail td {
+  padding: 14px 16px 14px 0;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+
+#memberpages #memberdetail th {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/*
+ * 値セルも折り返さない。この表は1行に2組の「ラベル/値」が入るため、
+ * 表の自動レイアウトでは右端の列に幅が回らず、「2026年8月19日」が
+ * 3行に折り返していた（実機のスクリーンショットで発覚）。
+ * 幅が足りない場合は狭い画面向けの横スクロール（下部のメディアクエリ）に任せる。
+ */
+#memberpages #memberdetail td {
+  white-space: nowrap;
+}
+
+/* 行の高さを揃えるためだけに置かれた空セルは罫線を引かない */
+#memberpages #memberdetail td.blank_cell,
+#memberpages #memberdetail .blank {
+  border-bottom: none;
+  padding: 0;
+  width: 32px;
+}
+
+/* 購入履歴の見出し行（#history_head）は見出しとして扱う */
+#memberpages #history_head th,
+#memberpages #history_head td {
+  padding: 0 12px 12px 0;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-text);
+}
+
+#memberpages .num {
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* 保有ポイント等の強調（member.php の #memberinfo li strong） */
+#memberpages #memberinfo ul {
+  margin: 0 0 24px;
+  padding-left: 1.2em;
+  font-size: 13px;
+  line-height: 2;
+}
+
+#memberpages #memberinfo li strong {
+  font-size: 16px;
+  color: var(--color-accent);
+}
+
+/* 本体が余白調整に使う空セル。装飾しない */
+#memberpages .blank,
+#memberpages .blank_cell {
+  border: none;
+}
+
+/* ============================================================
+   レスポンシブ
+   明細テーブルは列が多く縦積みにすると対応関係が失われるため、
+   横スクロールにして列構成を保つ。
+   ============================================================ */
+
+@media (max-width: 900px) {
+  .wcd-shop-page {
+    padding: 28px 16px 56px;
+  }
+
+  .wcd-shop-page #inside-cart,
+  .wcd-shop-page #customer-info,
+  .wcd-shop-page #delivery-info,
+  .wcd-shop-page #info-confirm,
+  .wcd-shop-page #error-page {
+    padding: 24px 20px;
+  }
+
+  /*
+   * 明細テーブルを縦積みに組み替える。
+   *
+   * 当初は列構成を保つため親要素を overflow-x: auto にして横スクロールに
+   * していたが、割引額と割引後合計が画面外に出てしまい、狭い画面では
+   * スクロールしない限り割引が一切見えない状態になっていた
+   * （実測: スクロール領域760pxに対し表示幅318px）。
+   * 「カート・確認・受注データの3箇所で割引が整合すること」が課題要件の
+   * 核心であり、その割引額が初期表示で見えないのは本質的な不備のため、
+   * 横スクロールをやめて縦積みに変更した。
+   *
+   * すべての行を block / grid / flex に組み替えるため、表の共有列グリッドは
+   * 使われなくなる。過去に「割引行だけを display: flex にして列グリッドから
+   * 外そうとして他の列の幅計算を壊した」ことがあるが、それは一部の行だけを
+   * 外したことが原因であり、ここでは全行を組み替えるので同じ問題は起きない。
+   */
+  .wcd-shop-page #cart_table,
+  .wcd-shop-page #cart_table tbody,
+  .wcd-shop-page #cart_table tfoot {
+    display: block;
+    width: 100%;
+  }
+
+  .wcd-shop-page #cart_table thead {
+    display: none;
+  }
+
+  /* 明細行: サムネイルを左、商品情報を右に積む */
+  .wcd-shop-page #cart_table tbody tr {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    align-items: start;
+    gap: 2px 14px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .wcd-shop-page #cart_table tbody td {
+    display: block;
+    padding: 0;
+    border: none;
+    text-align: left;
+  }
+
+  .wcd-shop-page #cart_table tbody td.num {
+    display: none;
+  }
+
+  .wcd-shop-page #cart_table tbody td.thumbnail {
+    grid-column: 1;
+    grid-row: 1 / span 5;
+    padding: 0;
+  }
+
+  .wcd-shop-page #cart_table tbody td.thumbnail img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .wcd-shop-page #cart_table tbody td.productname,
+  .wcd-shop-page #cart_table tbody td.unitprice,
+  .wcd-shop-page #cart_table tbody td.quantity,
+  .wcd-shop-page #cart_table tbody td.subtotal,
+  .wcd-shop-page #cart_table tbody td.stock,
+  .wcd-shop-page #cart_table tbody td.action {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .wcd-shop-page #cart_table tbody td.unitprice,
+  .wcd-shop-page #cart_table tbody td.stock {
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+
+  .wcd-shop-page #cart_table tbody td.quantity,
+  .wcd-shop-page #cart_table tbody td.action {
+    margin-top: 8px;
+  }
+
+  /* 合計・割引行: ラベルと金額を左右に並べ、空セルは畳む */
+  .wcd-shop-page #cart_table tfoot tr {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .wcd-shop-page #cart_table tfoot .num,
+  .wcd-shop-page #cart_table tfoot .thumbnail,
+  .wcd-shop-page #cart_table tfoot .stock,
+  .wcd-shop-page #cart_table tfoot .action {
+    display: none;
+  }
+
+  .wcd-shop-page #cart_table tfoot th,
+  .wcd-shop-page #cart_table tfoot td {
+    display: block;
+    text-align: right;
+  }
+
+  /*
+   * 小計行の上罫線は行（tr）側に移す。
+   * セルごとに border-top を持たせたままだと、非表示にした空セルの分だけ
+   * 罫線が途切れて分断された線に見える（縦積み時のスクリーンショットで発覚）。
+   */
+  .wcd-shop-page #cart_table tfoot tr:first-child {
+    border-top: 2px solid var(--color-text);
+  }
+
+  .wcd-shop-page #cart_table tfoot tr:first-child th {
+    border-top: none;
+  }
+
+  .wcd-shop-page #cart_table tfoot .aright:not(.subtotal):not(.totalend),
+  .wcd-shop-page #cart_table tfoot .totallabel {
+    flex: 1;
+    text-align: left;
+  }
+
+  /* 黒帯の行は左右の padding を持たせて帯として成立させる */
+  .wcd-shop-page #cart_table tr.wcd-discounted-total-row,
+  .wcd-shop-page #cart_table tr.total_full_price {
+    padding: 0 16px;
+    background: var(--color-nav-bg);
+  }
+
+  /*
+   * ステップ名は狭い画面では1行に収まらない。
+   * 既定の nowrap + ellipsis のままだと「1. IN YOU…」のように
+   * どのステップか読めなくなるため、折り返しを許可する。
+   */
+  .wcd-shop-page ol.ucart li.ucart {
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    padding: 12px 6px 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.4;
+  }
+
+  .wcd-shop-page table.customer_form th,
+  .wcd-shop-page #delivery_table th,
+  .wcd-shop-page #notes_table th,
+  .wcd-shop-page #confirm_table th {
+    display: block;
+    width: auto;
+    padding: 14px 0 4px;
+    border-bottom: none;
+  }
+
+  .wcd-shop-page table.customer_form td,
+  .wcd-shop-page #delivery_table td,
+  .wcd-shop-page #notes_table td,
+  .wcd-shop-page #confirm_table td {
+    display: block;
+    padding: 0 0 14px;
+  }
+
+  .wcd-shop-page .customer_form input[type="text"],
+  .wcd-shop-page .customer_form input[type="email"],
+  .wcd-shop-page .customer_form select,
+  .wcd-shop-page #delivery_table input[type="text"],
+  .wcd-shop-page #delivery_table select {
+    max-width: 100%;
+  }
+
+  .wcd-shop-page .send {
+    justify-content: stretch;
+  }
+
+  .wcd-shop-page .send input,
+  .wcd-shop-page .send a {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .wcd-shop-page .upbutton {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  #memberpages {
+    padding: 24px 20px;
+  }
+
+  #memberpages #memberinfo table,
+  #memberpages #memberdetail table {
+    display: block;
+    overflow-x: auto;
+  }
+}

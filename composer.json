@@ -21,6 +21,7 @@
     },
     "scripts": {
         "test": "phpunit --bootstrap tests/bootstrap.php tests/unit",
-        "lint": "phpcs --standard=phpcs.xml.dist"
+        "lint": "phpcs --standard=phpcs.xml.dist",
+        "lint:env": "phpcs --standard=docker/phpcs.xml.dist --basepath=docker"
     }
 }

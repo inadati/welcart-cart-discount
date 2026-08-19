@@ -60,6 +60,9 @@ wp plugin activate usc-e-shop
 echo "==> welcart-cart-discount を有効化"
 wp plugin activate welcart-cart-discount
 
+echo "==> 動作確認用テーマ（welcart-shop-theme）を有効化"
+wp theme activate welcart-shop-theme
+
 # Welcart の既定値は米国向け（英語・USD・US住所形式・国際便）のため、
 # 日本向けに寄せておく。いずれも Welcart 本体の設定項目であり、
 # 本プラグインの動作条件ではない（通貨記号や言語が変わるだけ）。
@@ -79,6 +82,38 @@ if ( isset( $opt["delivery_method"] ) && is_array( $opt["delivery_method"] ) ) {
 update_option( "usces", $opt );
 '
 
+# seed-items.php はSKU名・SKUコードを商品名・商品コードと同一に設定するため、
+# Welcart 既定の表示設定のままだとカート画面で「商品名 商品名」と重複表示される。
+# 投入する商品は実質SKUバリエーションを持たないので、その表示を無効化する。
+echo "==> 商品名の重複表示を防ぐ設定"
+wp eval '
+$opt = get_option( "usces", array() );
+$opt["indi_item_name"]["sku_name"] = 0;
+$opt["indi_item_name"]["sku_code"] = 0;
+update_option( "usces", $opt );
+'
+
+echo "==> 動作確認用の商品25点を投入（冪等）"
+wp eval-file wp-content/plugins/welcart-cart-discount/docker/seed-items.php
+
+# 課題文の例（10,000円以上で500円引き／30,000円以上で2,000円引き）を初期値として入れる。
+# オプション名・キー名は WCD_Settings::OPTION_KEY / normalize() に合わせている。
+echo "==> 割引ルールの初期値を設定（未設定の場合のみ）"
+wp eval '
+$rules = get_option( "wcd_settings", array() );
+if ( empty( $rules ) ) {
+	WCD_Settings::save_rules(
+		array(
+			array( "threshold" => 10000, "amount" => 500 ),
+			array( "threshold" => 30000, "amount" => 2000 ),
+		)
+	);
+	echo "初期ルールを設定しました（10,000円以上で500円引き／30,000円以上で2,000円引き）\n";
+} else {
+	echo "割引ルールは既に設定済みです（" . count( $rules ) . "段）\n";
+}
+'
+
 echo
 echo "完了しました。"
 echo "  サイト        : ${SITE_URL}"
@@ -86,4 +121,5 @@ echo "  管理画面      : ${SITE_URL}/wp-admin/"
 echo "  ユーザー/パス : ${ADMIN_USER} / ${ADMIN_PASS}"
 echo "  割引設定      : ${SITE_URL}/wp-admin/admin.php?page=wcd_settings"
 echo
-echo "商品が未登録の場合は、管理画面の Welcart Shop から商品を追加してください。"
+echo "動作確認用の商品25点と割引ルール2段が登録済みです。"
+echo "サイトの商品をカートに入れると、しきい値到達で自動割引が適用されます。"

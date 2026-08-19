@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<ruleset name="WelcartShopTheme">
+	<description>WordPress Coding Standards for the verification theme and setup scripts (docker/). These are not part of the submitted plugin.</description>
+
+	<file>theme/welcart-shop-theme</file>
+	<file>seed-items.php</file>
+
+	<arg value="sp"/>
+	<arg name="basepath" value="."/>
+	<arg name="extensions" value="php"/>
+
+	<config name="minimum_supported_wp_version" value="5.6"/>
+
+	<rule ref="WordPress"/>
+	<rule ref="WordPress-Extra"/>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="wcd_"/>
+				<element value="WCD_"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!--
+	このプロジェクトのDocBlock・インラインコメントは日本語で統一している。
+	Generic.Commenting.DocComment.ShortNotCapital / LongNotCapital は
+	「先頭が大文字のアルファベットであること」を要求するラテン文字圏向けの
+	スニフで、日本語の文には英大文字の概念が無いため機械的に適合できない。
+	コメントの実質的な質（内容の正確さ・完全性）はレビューで別途担保する前提で、
+	この2スニフのみ除外する。
+	-->
+	<rule ref="Generic.Commenting.DocComment.ShortNotCapital">
+		<exclude-pattern>*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.LongNotCapital">
+		<exclude-pattern>*</exclude-pattern>
+	</rule>
+
+	<!--
+	同様の理由で、文末が半角の `.` `!` `?` であることを要求するスニフも除外する。
+	日本語の文末は全角句点「。」を使う（このプロジェクト全体で統一）。
+	-->
+	<rule ref="Squiz.Commenting.FunctionComment.ParamCommentFullStop">
+		<exclude-pattern>*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.InlineComment.InvalidEndChar">
+		<exclude-pattern>*</exclude-pattern>
+	</rule>
+
+	<!--
+	theme/welcart-shop-theme/wc_templates/ 配下のファイル名（wc_item_single.php,
+	wc_templates/cart/wc_cart_page.php 等）は Welcart 本体
+	usc-e-shop/classes/usceshop.class.php の template_redirect() が
+	file_exists() でハードコードして探すファイル名そのものであり、
+	テーマ側の裁量でハイフン区切りにリネームすることはできない
+	（リネームするとWelcartがテーマの上書きを検出できなくなる）。
+	同ディレクトリでは $html 変数も、includeするWelcart本体の
+	templates/*.php 側が直接書き込む変数名であり、テーマ側で
+	wcd_プレフィックスに変更することはできない
+	（Welcart本体のコードを変更しない、という制約による）。
+	-->
+	<rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+		<exclude-pattern>theme/welcart-shop-theme/wc_templates/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound">
+		<exclude-pattern>theme/welcart-shop-theme/wc_templates/*</exclude-pattern>
+	</rule>
+</ruleset>

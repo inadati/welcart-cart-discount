@@ -1,0 +1,204 @@
+/*
+Theme Name: SOUND FORGE Shop
+Author: Itadani Hiroaki
+Description: Welcart 検証用の楽器機材ECサイトテーマ。
+Version: 1.0.32
+License: GPL v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: welcart-shop-theme
+*/
+
+:root {
+  --color-bg: #e5e5e5;
+  --color-surface: #ffffff;
+  --color-nav-bg: #111111;
+  --color-nav-text: #ffffff;
+  --color-text: #1a1a1a;
+  --color-text-muted: #6b6b6b;
+  --color-accent: #ff5a00;
+  --color-accent-text: #ffffff;
+  --color-border: #cfcfcf;
+  --font-display: "Helvetica Neue", Arial, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-body: "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+  --radius: 0px;
+}
+* { box-sizing: border-box; }
+img { max-width: 100%; height: auto; }
+/*
+ * 内容が短いページ（購入完了・空のカート等）では body の高さが
+ * ビューポートに届かず、黒いフッターの下に背景色の帯が残っていた
+ * （実測: ビューポート900px に対し body 744px、隙間156px）。
+ * body を縦方向の flex コンテナにし、フッターに margin-top: auto を
+ * 与えて最下部へ寄せる。内容が長いページでは auto は 0 と同じ挙動になる。
+ */
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-feature-settings: "palt";
+  line-height: 1.7;
+}
+/*
+ * body を flex コンテナにしたことで直下の要素は flex アイテムになる。
+ * このとき、交差軸（横方向）のマージンに auto があると stretch が無効になる
+ * という仕様があり、`.wcd-shop-page` は中央寄せのため margin: 0 auto を
+ * 持つため横幅が引き伸ばされず、内容の最大幅で確定してしまう。
+ * カート明細テーブルは狭い画面で min-width: 760px を持つので、これが
+ * main の幅を押し広げ、ページ全体に横スクロールが発生していた
+ * （実測: ビューポート390pxに対し main 832px, scrollWidth 832px）。
+ *
+ * width: 100% で横幅を明示して内容依存の幅決定を防ぐ。
+ * min-width: 0 は、flex アイテム既定の min-width: auto
+ * （中身の最小幅より縮まない）を解除するため併せて指定する。
+ * box-sizing は border-box なので padding を持つ要素でも破綻しない。
+ */
+body > * {
+  width: 100%;
+  min-width: 0;
+}
+
+a { color: inherit; text-decoration: none; }
+.site-header {
+  background: var(--color-nav-bg);
+  color: var(--color-nav-text);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+}
+.site-header__logo {
+  font-family: var(--font-display);
+  font-weight: 100;
+  font-size: 22px;
+  letter-spacing: 0.2em;
+}
+.site-header__nav { display: flex; gap: 28px; }
+.site-header__nav a {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.site-header__nav a:hover { opacity: 1; border-bottom: 1px solid var(--color-accent); }
+.site-header__icons { display: flex; align-items: center; gap: 16px; font-size: 13px; letter-spacing: 0.05em; }
+.site-header__cart { display: flex; align-items: center; color: var(--color-nav-text); opacity: 0.85; }
+.site-header__cart:hover { opacity: 1; color: var(--color-accent); }
+.site-header__cart-icon { display: block; }
+.wcd-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.hero { position: relative; height: 62vh; min-height: 420px; display: flex; align-items: flex-end; background: #000; overflow: hidden; }
+.hero__bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.75; }
+.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.6), rgba(0,0,0,.08)); }
+.hero__inner { position: relative; z-index: 1; padding: 0 24px 56px; width: 100%; }
+.hero__title {
+  font-family: var(--font-display);
+  font-weight: 100;
+  color: #fff;
+  font-size: clamp(48px, 8vw, 120px);
+  line-height: 1.0;
+  letter-spacing: 0.02em;
+  margin: 0 0 12px;
+}
+.hero__tagline { color: #eee; font-size: 15px; letter-spacing: 0.08em; margin: 0 0 28px; }
+.hero__cta {
+  display: inline-block;
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  padding: 16px 40px;
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border-radius: var(--radius);
+}
+
+.product-grid {
+  padding: 56px 24px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 32px;
+}
+.product-card { background: var(--color-surface); display: flex; flex-direction: column; border-radius: var(--radius); overflow: hidden; }
+.product-card__image { width: 100%; aspect-ratio: 1 / 1; overflow: hidden; display: block; }
+.product-card__body { padding: 16px; }
+.product-card__category { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); margin: 0; }
+.product-card__name { font-size: 15px; margin: 6px 0; font-weight: 500; }
+.product-card__price { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+.product-card__cta {
+  display: block; text-align: center; width: 100%;
+  border: 1px solid var(--color-accent); color: var(--color-accent);
+  padding: 10px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+  background: transparent; border-radius: var(--radius); cursor: pointer;
+}
+.product-card__cta:hover { background: var(--color-accent); color: var(--color-accent-text); }
+
+/* margin-top: auto で最下部へ寄せる（body の flex 化と対になる指定） */
+.site-footer { background: var(--color-nav-bg); color: #ccc; margin-top: auto; }
+.site-footer__inner { padding: 40px 24px; display: flex; justify-content: space-between; font-size: 12px; flex-wrap: wrap; gap: 16px; }
+.site-footer__links { display: flex; gap: 20px; }
+
+.breadcrumb { padding: 16px 24px; font-size: 12px; color: var(--color-text-muted); }
+.breadcrumb a { color: var(--color-text-muted); }
+.breadcrumb a:hover { color: var(--color-text); }
+
+.archive-title { padding: 0 24px; font-family: var(--font-display); font-weight: 100; font-size: clamp(24px, 4vw, 40px); }
+
+.item-detail { padding: 0 24px 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+.item-detail__gallery-main { width: 100%; aspect-ratio: 1/1; overflow: hidden; background: var(--color-surface); display: block; }
+.item-detail__gallery-main img,
+.product-card__image img { width: 100%; height: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; }
+.item-detail__gallery-sub { width: 120px; aspect-ratio: 4/3; object-fit: cover; margin-top: 12px; display: block; }
+.item-detail__category { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); margin: 0; }
+.item-detail__name { font-family: var(--font-display); font-weight: 100; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; margin: 8px 0 16px; }
+.item-detail__price { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
+.item-detail__stock { font-size: 13px; color: #2a8f4d; margin: 0 0 24px; }
+.item-detail__qty { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.item-detail__qty input { width: 64px; padding: 10px; border: 1px solid var(--color-border); text-align: center; }
+/*
+ * 「カートに入れる」ボタンはusces_the_itemSkuButton()（Welcart本体）が
+ * class="skubutton"で出力しており、モックアップからそのまま持ってきた
+ * `.item-detail__cta` は実際のDOMに一度も一致していなかった
+ * （レビュー時のスクリーンショットで、装飾の全く無いボタンとして発覚）。
+ */
+.item-detail__form input.skubutton { display: block; width: 100%; background: var(--color-accent); color: var(--color-accent-text); border: none; padding: 18px; font-size: 14px; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; border-radius: var(--radius); }
+
+.item-detail__description { padding: 0 24px 56px; font-size: 14px; line-height: 1.9; }
+.spec-table { padding: 0 24px; }
+.spec-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.spec-table th, .spec-table td { text-align: left; padding: 12px; border-bottom: 1px solid var(--color-border); }
+.spec-table th { width: 200px; color: var(--color-text-muted); font-weight: 500; }
+
+.related { padding: 0 24px 56px; }
+.related__title { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 20px; }
+.related__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 32px; }
+
+@media (max-width: 782px) {
+	.site-header__inner { flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; }
+	.site-header__nav { flex-wrap: wrap; gap: 12px 16px; width: 100%; order: 3; }
+	.site-header__nav a { font-size: 12px; }
+
+	.hero { height: 46vh; min-height: 320px; }
+	.hero__inner { padding: 0 16px 32px; }
+
+	.product-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 32px 16px; }
+
+	.item-detail { grid-template-columns: 1fr; gap: 24px; padding: 0 16px 32px; }
+	.item-detail__gallery-sub { width: 96px; }
+
+	.related__list { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+	.breadcrumb, .spec-table, .item-detail__description, .related { padding-left: 16px; padding-right: 16px; }
+	.site-footer__inner { padding: 24px 16px; flex-direction: column; gap: 12px; }
+}
+
+@media (max-width: 480px) {
+	.product-grid { grid-template-columns: 1fr; }
+	.related__list { grid-template-columns: 1fr; }
+	.hero__title { font-size: clamp(32px, 12vw, 56px); }
+}
