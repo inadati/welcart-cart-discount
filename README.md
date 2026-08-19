@@ -39,20 +39,27 @@ Composer の開発依存（PHPUnit 9.6.36 / PHP_CodeSniffer 3.13.6 相当、
 でインストールし、`composer lint` ・`composer test` を実行して確認した
 （`docs/screenshots/10-composer-lint.txt` ／ `docs/screenshots/11-composer-test.txt`）。
 
-### `.gitlab-ci.yml` について（未実行であることの明記）
+### CI（`.gitlab-ci.yml`）
 
-`.gitlab-ci.yml` は `lint` / `test` ステージで `composer lint` / `composer test` を
-実行する設定を用意しているが、**このリポジトリは GitLab にリモートとして push しておらず
-（`git remote` 未設定）、GitLab Runner 上でこのパイプラインが実際に実行された記録は無い**。
-実施したのは YAML 構文の妥当性チェックのみである。
+GitLab Runner 上で以下の3ジョブを実行している。
 
-```bash
-python3 -c "import yaml; yaml.safe_load(open('.gitlab-ci.yml'))"
-```
+| ジョブ | PHP | 内容 |
+| --- | --- | --- |
+| `lint` | 8.2 | `composer lint`（PHP_CodeSniffer / WPCS） |
+| `test` | 8.2 | `composer test`（PHPUnit） |
+| `syntax:php7.4` | 7.4 | 全 PHP ファイルの `php -l` |
 
-`composer lint` / `composer test` そのものは、上記の通りローカル環境（および後述の
-Docker コンテナ内）で実行し、結果を確認している。GitLab Runner 環境での実行確認は
-「動くはず」の域を出ておらず、今回は行っていない。
+`lint` / `test` を 8.2 で回しているのは、実際に動作確認した PHP バージョン
+（上表参照）に合わせるため。当初 `php:7.4-cli` を指定していたが、
+`composer.lock` は PHP 8 系で生成されており開発依存（`doctrine/instantiator` 2.0 等）が
+PHP 8.1 以上を要求するため `composer install` が解決できずに失敗した。
+これは **GitLab に push して実際にパイプラインを回して初めて判明した**もので、
+ローカル実行だけでは気づけなかった。
+
+`composer.json` の `require` は `"php": ">=7.4"` としている。この下限については
+開発依存を必要としない構文チェック（`php -l`）を 7.4 で実行して裏付けている。
+**7.4 で PHPUnit のテストが全て通ることまでは確認していない**（`composer.lock` が
+8 系前提のため）。下限の根拠は構文互換の範囲に留まる。
 
 ## 必須要件チェックリスト
 
