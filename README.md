@@ -106,17 +106,78 @@ Docker コンテナ内）で実行し、結果を確認している。GitLab Run
 
 ## ローカル動作確認手順
 
+Docker があれば、次の2コマンドで WordPress・Welcart・本プラグインが
+有効化された状態の検証環境が立ち上がる。
+
 ```bash
-docker compose -f docker/docker-compose.yml up -d
-composer install
-composer test
-composer lint
+docker compose -f docker/docker-compose.yml up -d --build
+./docker/setup.sh
 ```
 
-`docker compose` 起動後、`http://localhost:8080` にアクセスして WordPress の
-初期セットアップと Welcart（`usc-e-shop`）のインストール・有効化を行う。
-本プラグインは `docker-compose.yml` の bind mount により
-`wp-content/plugins/welcart-cart-discount` として自動的にマウントされる。
+完了すると以下が使える状態になる（初回のビルドに数分かかる）。
+
+| | |
+| --- | --- |
+| サイト | http://localhost:8080 |
+| 管理画面 | http://localhost:8080/wp-admin/（`admin` / `admin`） |
+| 割引設定 | http://localhost:8080/wp-admin/admin.php?page=wcd_settings |
+
+8080 番が使用中の場合は `WP_PORT` で変更できる。
+
+```bash
+WP_PORT=8090 docker compose -f docker/docker-compose.yml up -d --build
+WP_PORT=8090 ./docker/setup.sh
+```
+
+商品は登録されていないため、動作確認には管理画面の
+「Welcart Shop > 新規商品追加」から商品を1点以上追加する必要がある。
+
+### 2コマンドが何をしているか
+
+- **`docker/Dockerfile`** … 公式 `wordpress:6.6-php8.2-apache` イメージに、
+  wordpress.org から取得した Welcart（`usc-e-shop` **2.12.1** 固定）を同梱する。
+  配置先を `/var/www/html` ではなく `/usr/src/wordpress/wp-content/plugins/` に
+  しているのは、公式イメージの `docker-entrypoint.sh` が初回起動時に
+  `/usr/src/wordpress` を `/var/www/html` へ展開する作りのため
+  （`/var/www/html` は名前付きボリュームでマスクされるので残らない）。
+  entrypoint はプラグイン・テーマを「差し替え可能な内容」として扱い、
+  展開先に既に存在する場合はスキップするので、ボリュームを残したまま
+  再起動しても既存の Welcart を上書きしない。
+- **`docker/setup.sh`** … WP-CLI で `wp core install`、日本語言語パックの導入、
+  `usc-e-shop` と `welcart-cart-discount` の有効化、Welcart の日本向け設定
+  （通貨・表示言語・住所形式・対象国・配送方法）を行う。**冪等**で、
+  何度実行しても同じ結果になる。
+
+本プラグイン自体は `docker-compose.yml` の bind mount により
+`wp-content/plugins/welcart-cart-discount` としてマウントされる
+（リポジトリ直下がそのままプラグインディレクトリになる）。
+
+### Welcart の既定値についての補足
+
+Welcart の初期状態は米国向け（表示言語 英語・通貨 USD・US住所形式・国際便）に
+なっている。本プラグインの動作条件ではないが、既定のままだと金額が `$` 表示になり
+本 README のスクリーンショットと食い違うため、`setup.sh` で日本向けに設定している。
+
+| 設定項目（`usces` オプション） | 既定値 | `setup.sh` 適用後 |
+| --- | --- | --- |
+| `['system']['currency']` | `US` | `JP` |
+| `['system']['front_lang']` | `en` | `ja` |
+| `['system']['addressform']` | `US` | `JP` |
+| `['system']['target_market']` | `['US']` | `['JP']` |
+| `['delivery_method'][n]['intl']` | `1` | `0` |
+
+`front_lang` は WordPress のサイト言語とは独立した Welcart 独自の設定である。
+`usc-e-shop/usc-e-shop.php` が `add_filter( 'locale', 'usces_filter_locale' )` で
+フロント側のロケールを上書きするため、WordPress 側を日本語にしても
+`get_locale()` は `en` を返し、カート画面の文言は英語のままになる。
+
+### テストとコーディング規約チェック
+
+```bash
+composer install
+composer test   # PHPUnit
+composer lint   # PHP_CodeSniffer（WPCS）
+```
 
 ## ドキュメント
 

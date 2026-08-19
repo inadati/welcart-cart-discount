@@ -9,19 +9,48 @@ services:
       MYSQL_ROOT_PASSWORD: root
     volumes:
       - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   wordpress:
-    image: wordpress:6.6-php8.2-apache
+    # Welcart（usc-e-shop）を同梱したイメージをビルドする（docker/Dockerfile 参照）。
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_NAME: wordpress
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
     ports:
-      - "8080:80"
+      # 既に 8080 を使っている場合は WP_PORT=8090 のように上書きできる。
+      - "${WP_PORT:-8080}:80"
+    volumes:
+      - wp_data:/var/www/html
+      # リポジトリ直下がそのままプラグインディレクトリになる。
+      - ../:/var/www/html/wp-content/plugins/welcart-cart-discount
+
+  # WordPress 本体の初期セットアップとプラグイン有効化に使う（docker/setup.sh から利用）。
+  # 常駐させる必要は無いため、通常の up では起動しない profiles 付きにしている。
+  wpcli:
+    image: wordpress:cli
+    profiles: ["cli"]
+    user: "33:33"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
     volumes:
       - wp_data:/var/www/html
       - ../:/var/www/html/wp-content/plugins/welcart-cart-discount
