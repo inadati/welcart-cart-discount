@@ -7,3 +7,6 @@
 .DS_Store
 /.tmp-upload/
 /.playwright-mcp/
+
+# chot-harness の作業履歴（ツール内部データ）
+/.nipper/
