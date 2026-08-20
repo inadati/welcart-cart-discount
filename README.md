@@ -224,6 +224,42 @@ composer test   # PHPUnit
 composer lint   # PHP_CodeSniffer（WPCS）
 ```
 
+### E2E テスト（Playwright）
+
+カート画面・購入確認画面・受注データの3箇所整合と、受注編集画面での再計算の
+べき等性を、実ブラウザ（Playwright）で自動検証できる。上記「ローカル動作確認手順」の
+Docker 検証環境に対して動作するため、前提として **Docker と Node.js が必要**
+（検証した Node のバージョン: v24.12.0）。
+
+```bash
+composer e2e         # 検証環境の用意（未起動なら起動・不足があれば補う）→ 既知の状態へリセット → Playwright 実行
+composer e2e:up      # 検証環境の用意のみ（起動済み・準備済みなら何もしない。冪等）
+composer e2e:reset   # 割引設定（wcd_settings / wcd_exclusions）だけを既知の状態に戻す
+composer e2e:down    # 検証環境をボリュームごと破棄する（次回の e2e:up はまっさらから再構築）
+```
+
+4つの spec（`e2e/tests/`）・計11件がすべて PASS することを確認済み。
+
+- `01-cart-display.spec.ts` — カート画面の割引表示（しきい値未満・1段目到達・2段目への切り替え）
+- `02-checkout-consistency.spec.ts` — カート・購入確認・受注データの3箇所整合、
+  受注編集画面での再計算3回のべき等性（課題の核心要件に対応）
+- `03-category-exclusion.spec.ts` — 除外カテゴリによる部分除外（加点要件）
+- `04-admin-settings.spec.ts` — 管理画面からの設定保存、未ログイン時のアクセス拒否
+
+**E2Eは `docker/` の検証環境専用であり、汎用のリグレッションスイートではない。** 検証用
+テーマ（`docker/theme/welcart-shop-theme`）が描画する DOM 構造・`docker/seed-items.php`
+が投入する商品データ・管理者アカウント（`admin` / `admin`）に依存しており、他の環境や
+テーマに対してそのまま実行できることは意図していない。CI（GitHub Actions）にも
+載せていない（理由は `docs/design-notes.md` を参照）。
+
+**既知の限界（在庫消費）**: `02-checkout-consistency.spec.ts` は実際に購入を完走するため、
+実行のたびに対象商品（Practice Pad Set・Compact Tuner Pedal）の在庫を1個ずつ消費する。
+`composer e2e:reset` が戻すのは `wcd_settings` / `wcd_exclusions` の2オプションのみで、
+在庫数は戻さない。在庫が尽きるとカート追加ボタンがエラーを出さずに無反応となり、他の
+spec がエラーメッセージのない原因不明の失敗に見えることがある。発生した場合は
+`composer e2e:down` で検証環境を作り直す（商品データは `docker/setup.sh` により
+再投入される）。
+
 ## ディレクトリ構成
 
 ```
@@ -250,13 +286,18 @@ welcart-cart-discount/          ← このディレクトリがそのままプ�
 │   ├── setup.sh                初期化スクリプト（冪等）
 │   ├── seed-items.php          動作確認用の商品25点投入
 │   └── theme/welcart-shop-theme/  動作確認用テーマ
+├── e2e/                         E2Eテスト（Playwright、docker/ 検証環境専用。提出物ではあるがプラグイン本体の動作には不要）
+│   ├── bin/                    環境準備（env-up.sh）・リセット（env-reset.sh）・破棄（env-down.sh）・統合入口（run.sh）
+│   ├── helpers/                shop.ts（カート・購入フロー）/ admin.ts（管理画面）/ wpcli.ts（WP-CLI経由の前提データ投入）
+│   ├── tests/                  4 spec（カート表示・3箇所整合・除外・管理画面設定、計11件）
+│   └── playwright.config.ts
 ├── composer.json / phpcs.xml.dist
 └── .github/workflows/          CI（GitHub Actions）
     └── ci.yml                  WPCS×2・PHPUnit・構文チェックの4ジョブ
 ```
 
 `docker/` 以下は検証環境用であり、プラグインの動作には不要
-（実サイトへ配置する際は `docker/` `tests/` `vendor/` を除外してよい）。
+（実サイトへ配置する際は `docker/` `e2e/` `tests/` `vendor/` を除外してよい）。
 
 ## ドキュメント
 
