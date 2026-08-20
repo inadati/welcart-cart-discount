@@ -1,11 +1,11 @@
 import { test, expect, Page } from '@playwright/test'
 import { ITEMS, CART_URL, emptyCart, addToCart, readCartDiscount, completePurchase } from '../helpers/shop'
-import { loginAsAdmin, openOrderEdit, readOrderDiscount } from '../helpers/admin'
+import { loginAsAdmin, openOrderEdit, readOrderDiscount, clickRecalculation } from '../helpers/admin'
 import { resetToKnownState } from '../helpers/wpcli'
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('割引の3箇所整合', () => {
+test.describe('割引の3箇所整合と受注再計算のべき等性', () => {
   // 01-cart-display.spec.ts と同じ理由で単一 page を使い回す。
   // 加えてこの spec では、フロント（ゲスト購入）とバックエンド（管理画面ログイン）の
   // 両方を同一 page で行き来する。購入完了後にカートは空になっており、
@@ -47,5 +47,21 @@ test.describe('割引の3箇所整合', () => {
 
     // 3箇所目（受注データ）の整合。
     expect(await readOrderDiscount(page)).toBe(cartDiscount)
+  })
+
+  test('再計算を3回繰り返しても割引額が変動しない（二重計上の非再発）', async () => {
+    // 前のテストで既に受注編集画面を開いた状態だが、spec 単独実行時にも
+    // 成立するよう改めて開き直す。
+    await openOrderEdit(page, orderId)
+
+    const before = await readOrderDiscount(page)
+    expect(before).toBe(cartDiscount)
+
+    for (let i = 1; i <= 3; i += 1) {
+      await clickRecalculation(page)
+      const after = await readOrderDiscount(page)
+      // -500 が -1,000 → -1,500 と積み上がる二重計上が起きないこと。
+      expect(after, `${i} 回目の再計算後`).toBe(before)
+    }
   })
 })
