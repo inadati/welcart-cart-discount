@@ -45,3 +45,28 @@ export function resetToKnownState(): void {
   ])
   setExclusions({ ranks: [], categories: [] })
 }
+
+/**
+ * 直近に作成された受注 ID を取得する。
+ *
+ * 実測して判明した事実: 検証用テーマの購入完了画面
+ * （`docker/theme/welcart-shop-theme/wc_templates/cart/wc_completion_page.php`）は
+ * Welcart 本体の汎用完了テンプレート（`usc-e-shop/templates/cart/completion.php`）を
+ * そのまま `require` しているだけで、受注番号を一切表示しない。
+ * そのため完了画面の文字列から受注 ID を読み取ることはできず、
+ * 受注テーブル（`wp_usces_order`）へ直接問い合わせる。
+ *
+ * `wp db query` は本検証環境では `TLS/SSL error` で失敗するため、
+ * WordPress の DB 抽象化層を使う `wp eval` 経由で取得する。
+ */
+export function getLatestOrderId(): number {
+  const output = wp(
+    'eval',
+    'global $wpdb; echo (int) $wpdb->get_var("SELECT MAX(ID) FROM {$wpdb->prefix}usces_order");',
+  )
+  const id = Number(output)
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error(`受注IDを取得できません: ${output}`)
+  }
+  return id
+}

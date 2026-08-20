@@ -1,4 +1,5 @@
-import { Page } from '@playwright/test'
+import { Page, expect } from '@playwright/test'
+import { getLatestOrderId } from './wpcli'
 
 /**
  * 検証環境の商品25点のうち、E2E が使う4点。
@@ -93,4 +94,101 @@ export function parseAmount(text: string): number {
     throw new Error(`金額を読み取れません: ${text}`)
   }
   return Number(digits)
+}
+
+/**
+ * 購入フローで入力する検証用の顧客情報。
+ *
+ * 実測メモ: お客様情報フォームは「姓名」の2分割に加え、住所が
+ * `pref`（都道府県セレクト）／`address1`（市区郡町村）／`address2`（番地）の
+ * 3分割になっており、計画書が想定していた単一の `address1` では埋まらない
+ * （`address2` は必須項目「＊番地」）。メールアドレスも確認用の
+ * `mailaddress2` が別途必須。
+ */
+export const TEST_CUSTOMER = {
+  name1: 'テスト',
+  name2: '太郎',
+  zipcode: '1000001',
+  pref: '東京都',
+  address1: '千代田区千代田',
+  address2: '1-1',
+  tel: '0312345678',
+  email: 'e2e-buyer@example.com',
+} as const
+
+/**
+ * カート画面から購入を完了し、受注 ID を返す。
+ *
+ * カート → お客様情報 → 配送・支払方法 → 確認 → 完了 の5画面を通す。
+ *
+ * 実測メモ（計画書のコード例からの主な変更点）:
+ * - 各画面の「次へ」ボタンは `nextpage` という共通 name ではなく、
+ *   画面ごとに異なる name を持つ（カート→お客様情報: `customerinfo`、
+ *   お客様情報→配送: `deliveryinfo`、配送→確認: `confirm`、
+ *   確認→完了: `purchase`）。実際にカートから購入完了まで進めて確認した。
+ * - お客様情報画面には「会員ログイン」フォームと「ゲスト購入」フォームの
+ *   2つが同居する。`customer[...]` という name はゲスト側にしか存在しないため
+ *   セレクタの一意性は問題ない（実ページで確認済み）。
+ * - 配送・支払方法は初期選択（配送先=お客様情報と同じ／支払方法=銀行振込）が
+ *   既に要件を満たすため、値の変更は行わない。
+ */
+export async function completePurchase(page: Page): Promise<{ orderId: number; confirmDiscount: number }> {
+  await page.goto(CART_URL)
+  await page.locator('input[name="customerinfo"]').click()
+  await page.waitForLoadState('networkidle')
+
+  // お客様情報（ゲスト購入フォーム）。
+  await page.fill('input[name="customer[mailaddress1]"]', TEST_CUSTOMER.email)
+  await page.fill('input[name="customer[mailaddress2]"]', TEST_CUSTOMER.email)
+  await page.fill('input[name="customer[name1]"]', TEST_CUSTOMER.name1)
+  await page.fill('input[name="customer[name2]"]', TEST_CUSTOMER.name2)
+  await page.fill('input[name="customer[zipcode]"]', TEST_CUSTOMER.zipcode)
+  await page.selectOption('select[name="customer[pref]"]', TEST_CUSTOMER.pref)
+  await page.fill('input[name="customer[address1]"]', TEST_CUSTOMER.address1)
+  await page.fill('input[name="customer[address2]"]', TEST_CUSTOMER.address2)
+  await page.fill('input[name="customer[tel]"]', TEST_CUSTOMER.tel)
+  await page.locator('input[name="deliveryinfo"]').click()
+  await page.waitForLoadState('networkidle')
+
+  // 配送・支払方法（既定の選択のまま進む）。
+  await page.locator('input[name="confirm"]').click()
+  await page.waitForLoadState('networkidle')
+
+  // 確認画面: 割引額を読む。
+  const confirmDiscount = await readConfirmDiscount(page)
+
+  // 確定。
+  await page.locator('input[name="purchase"]').click()
+  await page.waitForLoadState('networkidle')
+
+  const orderId = await readCompletionOrderId(page)
+  return { orderId, confirmDiscount }
+}
+
+/**
+ * 購入確認画面の割引額を返す。Welcart 本体が `tr.discount` として描画する
+ * （`usc-e-shop/templates/cart/confirm.php`）。金額セルは `td.totalend` で
+ * 一意に取れることを実ページで確認済み（ラベル側セルは `td.totallabel`）。
+ */
+export async function readConfirmDiscount(page: Page): Promise<number> {
+  const row = page.locator('tr.discount')
+  await expect(row).toHaveCount(1)
+  return parseAmount(await row.locator('td.totalend').innerText())
+}
+
+/**
+ * 完了画面から受注 ID を取り出す。
+ *
+ * 実測メモ: 計画書は完了画面の本文テキストを正規表現で読み取る方式を
+ * 想定していたが、実際の完了画面（検証用テーマ
+ * `wc_templates/cart/wc_completion_page.php`）は Welcart 本体の汎用完了
+ * テンプレートをそのまま使っており、「送信が完了しました。お買い上げ
+ * ありがとうございました。」という定型文以外に受注番号を一切含まない
+ * （他の数値と誤認する以前に、そもそも数値が存在しない）。
+ * そのため完了画面に到達したことだけを見出しで確認し、受注 ID は
+ * WP-CLI 経由で受注テーブルから直接取得する（`getLatestOrderId()`）。
+ */
+export async function readCompletionOrderId(page: Page): Promise<number> {
+  await expect(page.locator('main.wcd-shop-page--completion')).toBeVisible()
+  return getLatestOrderId()
 }
