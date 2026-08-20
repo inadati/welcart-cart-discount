@@ -110,6 +110,7 @@ class WCD_Integration {
 	 * @return float
 	 */
 	public static function filter_order_recalculation( $discount, $cart, $condition, $order_id ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Welcart 側のフィルタシグネチャ（4引数）に合わせるため受け取る。
+
 		/*
 		 * この経路のセッション会員は操作している管理者であり、受注の持ち主ではない
 		 * （クラス冒頭のコメント参照）。除外条件（会員ランク除外）の判定を受注の

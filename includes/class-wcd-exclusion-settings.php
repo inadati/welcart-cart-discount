@@ -69,7 +69,7 @@ class WCD_Exclusion_Settings {
 		if ( isset( $raw['categories'] ) && is_array( $raw['categories'] ) ) {
 			foreach ( $raw['categories'] as $category ) {
 				// absint() は絶対値を取るため、0以下の判定は absint() を適用する前に行う
-				// （先に absint() すると負数が正数に反転し、0以下の除外条件を通過できなくなるため）。
+				// （先に absint() すると負数が正数に反転し、0以下の除外条件を通過できなくなるため）.
 				if ( ! is_numeric( $category ) || $category <= 0 ) {
 					continue;
 				}

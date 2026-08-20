@@ -42,7 +42,7 @@ class WCD_Exclusion {
 	}
 
 	/**
-	 * begin_order_recalculation() で設定した文脈を解除する。
+	 * 受注編集画面の再計算の文脈（begin_order_recalculation() で設定した状態）を解除する。
 	 *
 	 * WCD_Integration::filter_order_recalculation() の実行直後に呼ぶ。
 	 *
