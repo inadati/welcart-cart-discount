@@ -16,6 +16,7 @@
 | `usces_order_discount` | filter | 割引額の注入（全経路の起点） | `classes/usceshop.class.php:8318`, `classes/tax.class.php:368` |
 | `usces_filter_cart_table_footer` | filter | カート画面への割引行挿入 | `templates/cart/cart.php:67` |
 | `usces_filter_order_discount_recalculation` | filter | 受注編集時の再計算 | `functions/item_post.php:2805`, `:3023` |
+| `usces_action_reg_orderdata` | action | 受注登録時に注入済み割引額を `wp_usces_order_meta` へ記録（再計算時の基準値） | `functions/function.php:266`, `:417` |
 
 ### WordPress のフック
 
