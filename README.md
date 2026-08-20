@@ -251,7 +251,8 @@ welcart-cart-discount/          ← このディレクトリがそのままプ�
 │   ├── seed-items.php          動作確認用の商品25点投入
 │   └── theme/welcart-shop-theme/  動作確認用テーマ
 ├── composer.json / phpcs.xml.dist
-└── .gitlab-ci.yml
+└── .github/workflows/          CI（GitHub Actions）
+    └── ci.yml                  WPCS×2・PHPUnit・構文チェックの4ジョブ
 ```
 
 `docker/` 以下は検証環境用であり、プラグインの動作には不要
