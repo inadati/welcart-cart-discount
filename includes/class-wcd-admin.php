@@ -58,7 +58,8 @@ class WCD_Admin {
 			wp_die( esc_html__( 'この画面にアクセスする権限がありません。', 'welcart-cart-discount' ) );
 		}
 
-		$rules = get_option( WCD_Settings::OPTION_KEY, array() );
+		$rules      = get_option( WCD_Settings::OPTION_KEY, array() );
+		$exclusions = WCD_Exclusion_Settings::get();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( '自動割引設定', 'welcart-cart-discount' ); ?></h1>
@@ -89,6 +90,28 @@ class WCD_Admin {
 					</tbody>
 				</table>
 				<p><button type="button" class="button" id="wcd-add-row"><?php esc_html_e( '行を追加', 'welcart-cart-discount' ); ?></button></p>
+
+				<h2><?php esc_html_e( '除外条件', 'welcart-cart-discount' ); ?></h2>
+				<p><?php esc_html_e( '特定の会員ランクや商品カテゴリを自動割引の対象から除外できます。', 'welcart-cart-discount' ); ?></p>
+
+				<h3><?php esc_html_e( '除外する会員ランク', 'welcart-cart-discount' ); ?></h3>
+				<p class="description"><?php esc_html_e( '会員システムが無効な店舗では全員が「未ログイン（非会員）」として扱われます。このチェックを入れると割引が全面的に停止するため注意してください。', 'welcart-cart-discount' ); ?></p>
+				<?php foreach ( WCD_Exclusion_Settings::get_rank_choices() as $rank_key => $rank_label ) : ?>
+					<label style="display:block;">
+						<input type="checkbox" name="wcd_exclusions[ranks][]" value="<?php echo esc_attr( $rank_key ); ?>" <?php checked( in_array( $rank_key, $exclusions['ranks'], true ) ); ?> />
+						<?php echo esc_html( $rank_label ); ?>
+					</label>
+				<?php endforeach; ?>
+
+				<h3><?php esc_html_e( '除外する商品カテゴリ', 'welcart-cart-discount' ); ?></h3>
+				<p class="description"><?php esc_html_e( '除外カテゴリに直接属する商品の金額は、しきい値判定の対象から除外されます（該当商品分を差し引いた額で判定します。子カテゴリは含みません）。', 'welcart-cart-discount' ); ?></p>
+				<?php foreach ( get_categories( array( 'hide_empty' => false ) ) as $category ) : ?>
+					<label style="display:block;">
+						<input type="checkbox" name="wcd_exclusions[categories][]" value="<?php echo esc_attr( $category->term_id ); ?>" <?php checked( in_array( $category->term_id, $exclusions['categories'], true ) ); ?> />
+						<?php echo esc_html( $category->name ); ?>
+					</label>
+				<?php endforeach; ?>
+
 				<?php submit_button( __( '設定を保存', 'welcart-cart-discount' ) ); ?>
 			</form>
 		</div>
