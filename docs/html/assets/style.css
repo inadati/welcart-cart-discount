@@ -1,0 +1,690 @@
+/*
+ * docs/html/assets/style.css
+ * 提出物ドキュメント HTML 版のスタイルシート。
+ * 外部 CDN・Web フォントには依存しない（OS 標準フォントのみ使用）。
+ */
+
+/* ==========================================================================
+   0. リセット・基礎設定
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic",
+    "Noto Sans JP", sans-serif;
+  --font-mono: Menlo, Consolas, "Courier New", monospace;
+
+  --color-bg: #ffffff;
+  --color-bg-sidebar: #f7f7f8;
+  --color-bg-code: #f2f2f4;
+  --color-bg-header: #ffffff;
+  --color-fg: #262626;
+  --color-fg-muted: #6a6a6f;
+  --color-border: #dcdce0;
+  --color-accent: #3a6ea5;
+  --color-accent-visited: #6a4f9a;
+  --color-current-bg: #e8eef5;
+
+  --sidebar-width: 17rem;
+  --content-max-width: 46rem;
+  --header-height: 3rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1b1c1f;
+    --color-bg-sidebar: #202124;
+    --color-bg-code: #26272b;
+    --color-bg-header: #1b1c1f;
+    --color-fg: #e4e4e6;
+    --color-fg-muted: #a2a2a8;
+    --color-border: #3a3b40;
+    --color-accent: #7fb0e0;
+    --color-accent-visited: #b79ce0;
+    --color-current-bg: #29344a;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.9;
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+a:visited {
+  color: var(--color-accent-visited);
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* ==========================================================================
+   1. レイアウト（doc-page: サイドバー + 本文の2カラム）
+   ========================================================================== */
+
+.doc-page {
+  min-height: 100vh;
+}
+
+.topbar {
+  display: none;
+  align-items: center;
+  height: var(--header-height);
+  padding: 0 1rem;
+  background: var(--color-bg-header);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.nav-toggle {
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--color-fg);
+  background: var(--color-bg-sidebar);
+  border: 1px solid var(--color-border);
+  border-radius: 0.4em;
+  padding: 0.4em 0.9em;
+  cursor: pointer;
+}
+
+.nav-toggle:hover,
+.nav-toggle:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1.5rem 1.25rem;
+  background: var(--color-bg-sidebar);
+  border-right: 1px solid var(--color-border);
+  font-size: 0.9rem;
+}
+
+.sidebar-docs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-docs .back-link {
+  color: var(--color-fg-muted);
+  text-decoration: none;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-docs .back-link:hover,
+.sidebar-docs .back-link:focus-visible {
+  text-decoration: underline;
+}
+
+.sidebar-docs a {
+  color: var(--color-fg);
+  text-decoration: none;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.35em;
+  line-height: 1.5;
+}
+
+.sidebar-docs a:visited {
+  color: var(--color-fg);
+}
+
+.sidebar-docs a:hover,
+.sidebar-docs a:focus-visible {
+  background: var(--color-current-bg);
+}
+
+.sidebar-docs a[aria-current="page"] {
+  color: var(--color-accent);
+  font-weight: bold;
+  background: var(--color-current-bg);
+}
+
+main {
+  min-width: 0;
+}
+
+.doc {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 6rem;
+}
+
+/* ==========================================================================
+   2. 目次（サイドバー下段）
+   ========================================================================== */
+
+.toc {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.toc-link {
+  display: block;
+  color: var(--color-fg-muted);
+  text-decoration: none;
+  padding: 0.28rem 0.5rem;
+  border-radius: 0.35em;
+  border-left: 2px solid transparent;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.toc-link:visited {
+  color: var(--color-fg-muted);
+}
+
+.toc-link:hover,
+.toc-link:focus-visible {
+  background: var(--color-current-bg);
+  color: var(--color-fg);
+}
+
+.toc-link.toc-h3 {
+  padding-left: 1.5rem;
+  font-size: 0.92em;
+}
+
+.toc-link.is-current {
+  color: var(--color-accent);
+  font-weight: bold;
+  border-left-color: var(--color-accent);
+  background: var(--color-current-bg);
+}
+
+/* ==========================================================================
+   3. タイポグラフィ（見出し・段落）
+   ========================================================================== */
+
+.doc h1,
+.doc h2,
+.doc h3,
+.doc h4 {
+  font-weight: bold;
+  line-height: 1.5;
+  scroll-margin-top: 1.5rem;
+}
+
+.doc h1 {
+  font-size: 1.9rem;
+  margin: 0 0 1.2rem;
+}
+
+.doc h2 {
+  font-size: 1.45rem;
+  margin: 2.6rem 0 1.1rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.doc h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.doc h3 {
+  font-size: 1.18rem;
+  margin: 2rem 0 0.8rem;
+}
+
+.doc h4 {
+  font-size: 1.02rem;
+  margin: 1.6rem 0 0.6rem;
+  color: var(--color-fg-muted);
+}
+
+.doc p,
+.doc ul,
+.doc ol {
+  margin: 0 0 1.4em;
+}
+
+.doc li {
+  margin-bottom: 0.3em;
+}
+
+.doc blockquote {
+  margin: 0 0 1.4em;
+  padding: 0.2em 1.2em;
+  border-left: 3px solid var(--color-border);
+  color: var(--color-fg-muted);
+}
+
+.doc strong {
+  font-weight: bold;
+}
+
+.doc hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 2.4em 0;
+}
+
+/* 見出しアンカー: 通常は不可視、見出しホバー／フォーカス時に表示 */
+
+.anchor {
+  opacity: 0;
+  margin-left: 0.5em;
+  font-weight: normal;
+  color: var(--color-fg-muted);
+  text-decoration: none;
+  font-size: 0.85em;
+}
+
+h1:hover .anchor,
+h2:hover .anchor,
+h3:hover .anchor,
+h4:hover .anchor,
+.anchor:focus-visible {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   4. 本文要素: 表・コード・チェックリスト・画像・ログ
+   ========================================================================== */
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 0 1.4em;
+  -webkit-overflow-scrolling: touch;
+}
+
+.doc table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 28rem;
+  font-size: 0.95em;
+}
+
+.doc th,
+.doc td {
+  border: 1px solid var(--color-border);
+  padding: 0.5em 0.8em;
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc thead th,
+.doc tr:first-child th {
+  background: var(--color-bg-sidebar);
+  font-weight: bold;
+}
+
+.doc code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-bg-code);
+  padding: 0.15em 0.4em;
+  border-radius: 0.3em;
+  /* 関数名・パス等の長い空白なし識別子（例: WCD_Integration::record_injected_
+     discount_on_order_registration()）が段落・リスト内でコンテナ幅を超えて
+     はみ出さないよう、任意の位置で折り返しを許可する。pre 内のコードは
+     下記 .doc pre code で normal に戻し、横スクロールに任せる。 */
+  overflow-wrap: anywhere;
+}
+
+.doc pre {
+  background: var(--color-bg-code);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5em;
+  padding: 1em 1.2em;
+  overflow-x: auto;
+  margin: 0 0 1.4em;
+  -webkit-overflow-scrolling: touch;
+}
+
+.doc pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.88em;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* チェックリスト */
+
+.checklist {
+  list-style: none;
+  padding-left: 0;
+}
+
+.checklist li {
+  position: relative;
+  padding-left: 1.6em;
+}
+
+.checklist li::before {
+  content: "\2610"; /* ☐ */
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--color-fg-muted);
+}
+
+.checklist li.is-checked::before {
+  content: "\2713"; /* ✓ */
+  color: var(--color-accent);
+  font-weight: bold;
+}
+
+/* 画像サムネイル */
+
+.fig {
+  max-width: min(420px, 100%);
+  margin: 1.2em 0 1.4em;
+}
+
+.fig a {
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5em;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.fig img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.fig figcaption {
+  margin-top: 0.5em;
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  color: var(--color-fg-muted);
+  word-break: break-all;
+}
+
+/* 実行ログ (details.log) */
+
+.log {
+  margin: 0 0 1.4em;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5em;
+  background: var(--color-bg-code);
+  overflow: hidden;
+}
+
+.log summary {
+  cursor: pointer;
+  padding: 0.7em 1em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-fg);
+  list-style: revert;
+}
+
+.log summary:hover,
+.log summary:focus-visible {
+  color: var(--color-accent);
+}
+
+.log pre {
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  background: none;
+  max-height: 22em;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+/* ==========================================================================
+   5. ライトボックス（dialog）
+   ========================================================================== */
+
+.lightbox-dialog {
+  padding: 0;
+  border: none;
+  border-radius: 0.5em;
+  background: transparent;
+  max-width: 92vw;
+  max-height: 92vh;
+}
+
+.lightbox-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.lightbox-dialog img {
+  display: block;
+  max-width: 92vw;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  border-radius: 0.4em;
+}
+
+.lightbox-close {
+  position: fixed;
+  top: 1.2rem;
+  right: 1.6rem;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  border-radius: 50%;
+  width: 2.2em;
+  height: 2.2em;
+  cursor: pointer;
+}
+
+.lightbox-close:hover,
+.lightbox-close:focus-visible {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+/* ==========================================================================
+   6. index.html（サイドバー無し・別レイアウト）
+   ========================================================================== */
+
+.index-page {
+  display: flex;
+  justify-content: center;
+}
+
+.index-main {
+  width: 100%;
+  max-width: var(--content-max-width);
+  padding: 4rem 1.5rem 6rem;
+}
+
+.index-main h1 {
+  font-size: 1.9rem;
+  margin: 0 0 1.5rem;
+}
+
+.index-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.index-list a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1em 1.2em;
+  border: 1px solid var(--color-border);
+  border-radius: 0.6em;
+  text-decoration: none;
+  color: var(--color-fg);
+  font-size: 1.05em;
+}
+
+.index-list a:visited {
+  color: var(--color-fg);
+}
+
+.index-list a:hover,
+.index-list a:focus-visible {
+  border-color: var(--color-accent);
+  background: var(--color-current-bg);
+}
+
+.index-tag {
+  flex-shrink: 0;
+  font-size: 0.78em;
+  font-family: var(--font-mono);
+  color: var(--color-fg-muted);
+  background: var(--color-bg-code);
+  border-radius: 0.3em;
+  padding: 0.2em 0.6em;
+}
+
+.index-note {
+  color: var(--color-fg-muted);
+  border-left: 3px solid var(--color-border);
+  padding-left: 1em;
+  margin: 0 0 1.4em;
+}
+
+.index-meta {
+  font-size: 0.85em;
+  font-family: var(--font-mono);
+  color: var(--color-fg-muted);
+}
+
+.index-meta code {
+  font-family: var(--font-mono);
+  background: var(--color-bg-code);
+  padding: 0.1em 0.4em;
+  border-radius: 0.3em;
+}
+
+/* ==========================================================================
+   7. レスポンシブ（900px 未満: 1カラム + サイドバー開閉式）
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .topbar {
+    display: flex;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    width: min(20rem, 88vw);
+    height: calc(100vh - var(--header-height));
+    z-index: 15;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .doc {
+    padding: 2rem 1.25rem 5rem;
+  }
+}
+
+@media (min-width: 901px) {
+  .sidebar {
+    display: block !important;
+    transform: none !important;
+  }
+}
+
+/* 極小幅でも横スクロールを起こさない */
+@media (max-width: 400px) {
+  body {
+    font-size: 16px;
+  }
+
+  .doc {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .index-main {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* ==========================================================================
+   8. 印刷（サイドバー非表示・本文全幅）
+   ========================================================================== */
+
+@media print {
+  .topbar,
+  .sidebar,
+  .nav-toggle,
+  .anchor,
+  .lightbox-dialog {
+    display: none !important;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .doc {
+    max-width: none;
+    padding: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+  }
+}

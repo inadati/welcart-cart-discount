@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI活用レポート | Welcart Cart Discount 提出物</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="doc-page">
+  <header class="topbar">
+    <button class="nav-toggle" aria-expanded="false" aria-controls="sidebar">目次</button>
+  </header>
+  <div class="layout">
+    <nav id="sidebar" class="sidebar">
+      <div class="sidebar-docs">
+        <a href="index.html" class="back-link">← 目次に戻る</a>
+        <a href="readme.html">README</a>
+        <a href="design-notes.html">設計メモ</a>
+        <a href="ai-report.html" aria-current="page">AI活用レポート</a>
+        <a href="verification.html">動作確認の記録</a>
+      </div>
+      <nav class="toc">
+        <a href="#使用ツールと進め方" class="toc-link toc-h2">使用ツールと進め方</a>
+        <a href="#コミット順序と実装計画のタスク番号の関係" class="toc-link toc-h2">コミット順序と実装計画のタスク番号の関係</a>
+        <a href="#welcart-実ソースでの事前検証なぜ行ったか" class="toc-link toc-h2">Welcart 実ソースでの事前検証（なぜ行ったか）</a>
+        <a href="#aiの出力が誤っていた箇所とその発見修正方法" class="toc-link toc-h2">AIの出力が誤っていた箇所とその発見・修正方法</a>
+        <a href="#1-usces_filter_cart_table_footer-の引数仕様設計時点の誤り実装前に訂正" class="toc-link toc-h3">1. usces_filter_cart_table_footer の引数仕様（設計時点の誤り・実装前に訂正）</a>
+        <a href="#2-wcd_settingsnormalize-の-absint-適用順序コード内コメントから確認できる設計判断" class="toc-link toc-h3">2. WCD_Settings::normalize() の absint() 適用順序（コード内コメントから確認できる設計判断）</a>
+        <a href="#3-受注編集の再計算フィルタでの割引二重計上タスク15の実機検証で発見修正" class="toc-link toc-h3">3. 受注編集の再計算フィルタでの割引二重計上（タスク15の実機検証で発見・修正）</a>
+        <a href="#4-welcart-の受注は投稿タイプで-post-meta-が使えるという誤った前提2周目修正で訂正" class="toc-link toc-h3">4. 「Welcart の受注は投稿タイプで post meta が使える」という誤った前提（2周目修正で訂正）</a>
+        <a href="#5-受注再計算のコード修正後実機docker--playwrightで再検証した結果" class="toc-link toc-h3">5. 受注再計算のコード修正後、実機（Docker + Playwright）で再検証した結果</a>
+        <a href="#6-usces_action_reg_orderdata-フックの新規受注フローでの発火が未確認だったこと3周目修正で解消" class="toc-link toc-h3">6. usces_action_reg_orderdata フックの新規受注フローでの発火が未確認だったこと（3周目修正で解消）</a>
+        <a href="#7--2500-という数値と-ui-経由の回避策が実機未確認のまま記載されていたこと3周目修正で訂正" class="toc-link toc-h3">7. -¥2,500 という数値と UI 経由の回避策が実機未確認のまま記載されていたこと（3周目修正で訂正）</a>
+        <a href="#うまくいかなかったこと時間を要したこと" class="toc-link toc-h2">うまくいかなかったこと・時間を要したこと</a>
+        <a href="#welcart-管理画面の新規商品登録で-playwright-の合成クリックが機能しなかった" class="toc-link toc-h3">Welcart 管理画面の「新規商品登録」で Playwright の合成クリックが機能しなかった</a>
+        <a href="#受注再計算の精緻化後も残る既知の限界未解決正直に記録する" class="toc-link toc-h3">受注再計算の精緻化後も残る既知の限界（未解決・正直に記録する）</a>
+        <a href="#国際配送バリデーションでdelivery-method-is-incorrectエラー" class="toc-link toc-h3">国際配送バリデーションで「Delivery method is incorrect」エラー</a>
+        <a href="#未完了だった項目第一段階時点" class="toc-link toc-h3">未完了だった項目（第一段階時点）</a>
+        <a href="#第二段階-除外条件設定会員ランク商品カテゴリ" class="toc-link toc-h2">第二段階: 除外条件設定（会員ランク・商品カテゴリ）</a>
+        <a href="#8-writing-plans-フェーズで発見した設計書内の記述矛盾" class="toc-link toc-h3">8. writing-plans フェーズで発見した設計書内の記述矛盾</a>
+        <a href="#9-wcd_exclusion_settingsnormalize-の-categories-正規化バグタスク1担当が実装中に発見" class="toc-link toc-h3">9. WCD_Exclusion_Settings::normalize() の categories 正規化バグ（タスク1担当が実装中に発見）</a>
+        <a href="#10-wpcs違反の修正と参照した先例コミットのハッシュ表記の誤り" class="toc-link toc-h3">10. WPCS違反の修正と、参照した先例コミットのハッシュ表記の誤り</a>
+        <a href="#11-受注再計算の例外安全性とランク0境界値のテスト漏れ2周目のevaluator-rejectで指摘修正3周目でドキュメント化" class="toc-link toc-h3">11. 受注再計算の例外安全性とランク0境界値のテスト漏れ（2周目のevaluator REJECTで指摘・修正、3周目でドキュメント化）</a>
+        <a href="#単体テスト件数-実装計画の想定32件と実際44件2周目修正で46件の乖離" class="toc-link toc-h3">単体テスト件数: 実装計画の想定（32件）と実際（44件→2周目修正で46件）の乖離</a>
+        <a href="#並行-generator-間のコミット競合とその復旧並列運用上の実例" class="toc-link toc-h3">並行 generator 間のコミット競合とその復旧（並列運用上の実例）</a>
+        <a href="#第二段階のコミット順序と実装計画のタスク番号の関係" class="toc-link toc-h3">第二段階のコミット順序と実装計画のタスク番号の関係</a>
+        <a href="#e2e-テストplaywright" class="toc-link toc-h2">E2E テスト（Playwright）</a>
+        <a href="#12-商品の投稿タイプに関する誤った前提" class="toc-link toc-h3">12. 商品の投稿タイプに関する誤った前提</a>
+        <a href="#13-カート画面のurlusces-cart-ではなく-page_id5" class="toc-link toc-h3">13. カート画面のURL（/usces-cart/ ではなく /?page_id=5）</a>
+        <a href="#14-商品ページへの導線トップページの一覧に全商品が出ない" class="toc-link toc-h3">14. 商品ページへの導線（トップページの一覧に全商品が出ない）</a>
+        <a href="#15-page-フィクスチャのシャドウィングによるカート内容の喪失実装中に発生自己発見して修正" class="toc-link toc-h3">15. page フィクスチャのシャドウィングによるカート内容の喪失（実装中に発生・自己発見して修正）</a>
+        <a href="#16-次へボタンの-name-属性は画面ごとに異なる" class="toc-link toc-h3">16. 「次へ」ボタンの name 属性は画面ごとに異なる</a>
+        <a href="#17-お客様情報フォームの入力項目不足" class="toc-link toc-h3">17. お客様情報フォームの入力項目不足</a>
+        <a href="#18-完了画面に受注番号が表示されない正規表現スクレイピング方式は成立しなかった" class="toc-link toc-h3">18. 完了画面に受注番号が表示されない（正規表現スクレイピング方式は成立しなかった）</a>
+        <a href="#19-受注編集画面のurlはnonce必須で直接構築できない" class="toc-link toc-h3">19. 受注編集画面のURLはnonce必須で直接構築できない</a>
+        <a href="#20-wp-db-query-のtlssslエラー" class="toc-link toc-h3">20. wp db query のTLS/SSLエラー</a>
+        <a href="#21-意図的な失敗確認空振り検知の実施記録2周目修正" class="toc-link toc-h3">21. 意図的な失敗確認（空振り検知）の実施記録（2周目修正）</a>
+        <a href="#e2e実装全体を通じた教訓" class="toc-link toc-h3">E2E実装全体を通じた教訓</a>
+        <a href="#22-隔離環境での冪等性検証によって発見した商品urlの投稿id直値依存2周目修正" class="toc-link toc-h3">22. 隔離環境での冪等性検証によって発見した商品URLの投稿ID直値依存（2周目修正）</a>
+        <a href="#うまくいかなかったこと時間を要したことe2e追記" class="toc-link toc-h2">うまくいかなかったこと・時間を要したこと（E2E、追記）</a>
+        <a href="#商品在庫の枯渇による他specへの副作用設計上の盲点" class="toc-link toc-h3">商品在庫の枯渇による他specへの副作用（設計上の盲点）</a>
+      </nav>
+    </nav>
+    <main>
+      <article class="doc">
+<h1>AI活用レポート</h1>
+<h2 id="使用ツールと進め方">使用ツールと進め方<a class="anchor" href="#使用ツールと進め方">#</a></h2>
+<ul>
+<li><strong>Claude Code</strong>（本レポート作成時点のモデル: Claude Sonnet 5）を、設計から実装・検証・
+ドキュメント作成まで一貫して使用した。</li>
+<li>開発フローは chot-harness（設計→計画→並列生成→評価のループを回す社内ハーネス）を用い、
+以下の段階を踏んだ。
+<ol>
+<li><strong>brainstorming</strong>: 課題文の要件・評価基準を踏まえた対話を通じて設計方針を固め、
+<code>.nipper/chot/specs/2026-08-18-welcart-cart-discount-design.md</code> を作成。</li>
+<li><strong>writing-plans</strong>: 設計書を基に、TDD前提のステップバイステップな実装計画
+<code>.nipper/chot/plans/2026-08-18-welcart-cart-discount.md</code>（タスク1〜16）を作成。</li>
+<li><strong>generator（並列生成・バッチ方式）</strong>: 実装計画のタスク1〜14を、chot-harness の
+generator フェーズが複数の generator サブエージェントにバッチ単位で並列に割り当てて
+実装した。実際のコミット順序（後述）は計画のタスク番号の順序とは一致しない箇所があるが、
+これは意図的な並列化の結果であり見落としではない。詳細は次節「コミット順序と実装計画の
+タスク番号の関係」に記録する。</li>
+<li><strong>本タスク（15・16、および本レポート作成後の2周目・3周目修正）</strong>: 実機検証
+（Docker + Playwright によるブラウザ操作）と提出物ドキュメントの作成。実装エージェント
+とは別のセッションとして、すでに実装済みのコードを外部から検証する立場で作業した。
+2周目では、chot-harness の evaluator が REJECT と判定した指摘
+（<code>.nipper/chot/feedback.md</code>）に基づき、コード側は別の generator サブエージェントが
+2件修正し（カート表フッターの null 安全性確保、受注再計算の精緻化）、本レポートを
+含むドキュメント側は本タスクが担当し整合させた。3周目では、evaluator が
+<code>order-meta-hook-coverage</code> 軸・<code>known-limitation-precision</code> 軸で REJECT と判定した
+指摘（新規受注フローでの受注メタ自動記録が実機未確認であったこと、-¥2,500という
+数値とUI経由の回避策が実機未確認のまま「確認した」と記載されていたこと）を受け、
+本タスクが実機で追加検証を行い、ドキュメントの記述を実際に確認できた内容に
+訂正した（詳細は「AIの出力が誤っていた箇所」6・7を参照）。</li>
+<li><strong>第二段階（除外条件設定）</strong>: 加点要件の実装として、同じ
+brainstorming → writing-plans → generator（並列生成） の流れを別セッションで
+再度回した。設計書は
+<code>.nipper/chot/specs/2026-08-20-welcart-cart-discount-exclusions-design.md</code>、
+実装計画は <code>.nipper/chot/plans/2026-08-20-welcart-cart-discount-exclusions.md</code>
+（タスク1〜13）。タスク1〜11を generator が並列実装し、本タスク（タスク12・
+提出物ドキュメント更新）は実装エージェントとは別のセッションとして、既に実装
+済みの除外条件のコードとコミット履歴を外部から確認し整合させる形で担当した。
+詳細は「第二段階: 除外条件設定」節を参照。</li>
+</ol>
+</li>
+</ul>
+<h2 id="コミット順序と実装計画のタスク番号の関係">コミット順序と実装計画のタスク番号の関係<a class="anchor" href="#コミット順序と実装計画のタスク番号の関係">#</a></h2>
+<p>実際のコミット順序を <code>git log --pretty=format:&quot;%h %ad %s&quot; --date=iso --reverse</code> で確認すると、
+タスク1〜14の範囲は次の通りである（コマンドの出力そのもの）。</p>
+<pre><code>a804d6b 2026-08-18 14:34:57 +0900 chore: プロジェクト雛形とツールチェーンを追加
+210c995 2026-08-18 14:39:22 +0900 chore: Docker検証環境を追加
+055d5d7 2026-08-18 14:39:30 +0900 chore: GitLab CI で lint と test を実行するよう設定
+b0257ec 2026-08-18 14:40:44 +0900 feat: WCD_Rule 値オブジェクトを追加
+3db3112 2026-08-18 14:41:05 +0900 feat: WCD_Calculator 割引計算コアを追加
+673e1f5 2026-08-18 14:42:10 +0900 feat: WCD_Settings::normalize() を追加
+3e54811 2026-08-18 14:43:10 +0900 feat: WCD_Plugin によるフック登録の一元管理を追加
+3e7bcc8 2026-08-18 14:43:37 +0900 feat: WCD_Admin に設定画面の描画を追加
+e6ceb79 2026-08-18 14:43:50 +0900 feat: 設定保存処理に nonce検証・権限チェック・サニタイズを実装
+79a6199 2026-08-18 14:43:54 +0900 feat: WCD_Integration に割引額注入と受注再計算を追加
+d0d5329 2026-08-18 14:44:06 +0900 feat: カート画面への割引行表示を追加
+344b685 2026-08-18 14:48:58 +0900 style: WPCS違反を解消
+833713e 2026-08-18 14:49:44 +0900 chore: 翻訳用 .pot を生成
+</code></pre>
+<p>すなわち、実際の順序は「雛形→<strong>Docker→GitLab CI</strong>→値オブジェクト→計算コア→設定→
+WCD_Plugin→<strong>WCD_Admin描画→設定保存</strong>→WCD_Integration→カート表示→lint→i18n」であり、
+計画のタスク番号順（1〜14の昇順）とは以下の2点で異なる。</p>
+<ol>
+<li>タスク13（Docker検証環境）・タスク14（GitLab CI設定）が、タスク1（雛形）の直後、
+タスク2〜11（値オブジェクト・計算コア・設定・フック接続・管理画面という TDD によるコア
+実装群）より前にコミットされている。</li>
+<li>タスク6〜10の内部順序が、計画（6:WCD_Plugin→7:Integration割引注入→8:カート表示→
+9:Admin描画→10:Admin保存）とは異なり、実際は 6(WCD_Plugin)→9(Admin描画)→
+10(Admin保存)→7(Integration)→8(カート表示) の順になっている。</li>
+</ol>
+<p><strong>この乖離が生じた理由</strong>: chot-harness の generator フェーズは、実装計画のタスク間の依存関係を
+踏まえた上で、依存関係のない独立タスクを1つのバッチとしてまとめ、複数の generator
+サブエージェントに並列で割り当てるバッチ方式で実行される。実装計画のタスク番号は
+「論理的な依存順序」（何が何に依存して書けるか）を表現するものであり、「コミットの
+タイムスタンプ順」を保証するものではない。</p>
+<ul>
+<li>タスク13（Docker検証環境）とタスク14（GitLab CI設定）は、コア実装タスク2〜11
+（値オブジェクト・計算コア・設定・フック接続・管理画面）のいずれにも依存しない独立タスク
+である（Docker はテスト対象コードを bind mount するだけ、GitLab CI は <code>composer test</code> /
+<code>composer lint</code> を呼び出すだけで、両者ともコード側の実装内容を先に読む必要がない）。
+そのため、タスク1（雛形）が完了した直後の同一バッチで、コア実装群と並列実行の対象となった。
+Docker・CI の設定ファイルはコア実装（TDD でテストを書きながら実装するため相対的に時間を
+要する）より記述量・検証時間が少なく、担当した generator サブエージェントの完了が早かった
+ため、結果としてコミットが先になった。</li>
+<li>タスク6〜10も同様に、タスク6（WCD_Plugin）完了後は、タスク9（Admin描画）・
+タスク10（Admin保存）・タスク7（Integration の割引額注入・受注再計算）・
+タスク8（カート表示）の相互に依存しない4タスクが同一バッチで並列実行され、
+各サブエージェントの実際の作業完了タイミングによって計画の番号順とは異なる順に
+コミットされた。</li>
+</ul>
+<p>一方、タスク間の<strong>依存関係そのもの</strong>は損なわれていない。実際のログでもタスク2
+（b0257ec、WCD_Rule）〜タスク4（673e1f5、WCD_Settings）というコア計算層が、これらに
+依存するタスク6〜10（フック接続・管理画面）より前に完了していることが確認できる。
+機能的な正しさは各バッチの完了時点で <code>composer test</code> / <code>composer lint</code> を実行して都度
+確認しており（各タスクのコミットメッセージ内の「構文チェックを行う」ステップに対応）、
+依存順序の遵守という設計上の制約は守られたまま、コミットの見た目の時系列だけが
+バッチ内の並列実行によって前後している。これは意図的な並列化の結果であり、
+単なる作業順序の乱れや見落としではない。</p>
+<h2 id="welcart-実ソースでの事前検証なぜ行ったか">Welcart 実ソースでの事前検証（なぜ行ったか）<a class="anchor" href="#welcart-実ソースでの事前検証なぜ行ったか">#</a></h2>
+<p>設計書・実装計画のいずれにも「フックの実在は必ず Welcart のソースを読んで確認し、
+推測でフック名を使わない」という制約を明記していた。これは、AIエージェントが
+存在しないフック名やシグネチャを尤もらしく生成しがち、という一般的な弱点への
+対策として意図的に組み込んだプロセスである。実装計画のタスク5を「調査タスク・
+コード変更なし」として独立させ、<code>usces_order_discount</code> / <code>usces_filter_cart_table_footer</code> /
+<code>usces_filter_order_discount_recalculation</code> の呼び出し箇所・引数の実体を
+<code>grep</code> と実ソース読解で確認してから Integration 層の実装に着手する順序にした。</p>
+<h2 id="aiの出力が誤っていた箇所とその発見修正方法">AIの出力が誤っていた箇所とその発見・修正方法<a class="anchor" href="#aiの出力が誤っていた箇所とその発見修正方法">#</a></h2>
+<h3 id="1-usces_filter_cart_table_footer-の引数仕様設計時点の誤り実装前に訂正">1. <code>usces_filter_cart_table_footer</code> の引数仕様（設計時点の誤り・実装前に訂正）<a class="anchor" href="#1-usces_filter_cart_table_footer-の引数仕様設計時点の誤り実装前に訂正">#</a></h3>
+<p>設計書は当初、このフックも <code>usces_order_discount</code> と同様に <code>$cart</code> が引数で
+渡ってくる想定で書かれていたが、これは実ソースを読む前の推測だった。
+実装計画タスク5で <code>templates/cart/cart.php</code> を実際に読んだところ、</p>
+<pre><code class="language-php">$html .= apply_filters( 'usces_filter_cart_table_footer', $cart_table_footer );
+</code></pre>
+<p>（<code>templates/cart/cart.php:67</code>）であり、引数は <code>$cart_table_footer</code> の1つのみで
+<code>$cart</code> は渡されないことが判明した。この事実は <code>includes/class-wcd-integration.php</code>
+のコミット（<code>feat: WCD_Integration に割引額注入と受注再計算を追加</code> および
+<code>feat: カート画面への割引行表示を追加</code>）に残るコード内コメントで確認できる。
+実装では <code>global $usces; $usces-&gt;cart-&gt;get_cart();</code> によりカート情報を
+明示的に取得する形に修正して実装された。<strong>コードを書く前に実ソースで検証する
+プロセスが機能し、誤りが実装に混入する前に訂正できた事例。</strong></p>
+<h3 id="2-wcd_settingsnormalize-の-absint-適用順序コード内コメントから確認できる設計判断">2. <code>WCD_Settings::normalize()</code> の absint() 適用順序（コード内コメントから確認できる設計判断）<a class="anchor" href="#2-wcd_settingsnormalize-の-absint-適用順序コード内コメントから確認できる設計判断">#</a></h3>
+<p><code>git show 673e1f5</code>（<code>feat: WCD_Settings::normalize() を追加</code>）のコードには、
+以下のコメントが残っている。</p>
+<pre><code class="language-php">// absint() は abs( intval() ) であり負値をそのまま正値へ反転させるため、
+// 0以下（負値含む）の判定は absint() する前の生値に対して行う。
+if ( (float) $row['threshold'] &lt;= 0 || (float) $row['amount'] &lt;= 0 ) {
+    continue;
+}
+
+$threshold = absint( $row['threshold'] );
+</code></pre>
+<p><code>absint()</code> は絶対値を取ってから整数化するため、<code>absint( -500 )</code> は <code>500</code> になり、
+本来は不正として破棄すべき負のしきい値が正のルールとして通ってしまう。
+この関数は「不正入力の除去（負値・空文字・非数値）」がテスト観点として
+設計書に明記されていた項目であり、<code>tests/unit/WCD_SettingsTest.php</code> の
+<code>test_discards_non_positive_rows()</code> によって
+このコメントが示す順序（符号判定 → <code>absint()</code>）が正しく実装されていることを
+TDDで担保している。<strong>absint() を先に適用すると符号情報が失われる</strong>という
+落とし穴は、WordPress関数の意味論を正確に理解していないと踏みやすい誤りであり、
+コメントとして明示的に残すことで再発を防いでいる。</p>
+<h3 id="3-受注編集の再計算フィルタでの割引二重計上タスク15の実機検証で発見修正">3. 受注編集の再計算フィルタでの割引二重計上（タスク15の実機検証で発見・修正）<a class="anchor" href="#3-受注編集の再計算フィルタでの割引二重計上タスク15の実機検証で発見修正">#</a></h3>
+<p>これは実装フェーズではなく、<strong>本タスク（タスク15の実機検証）で新たに発見した
+不具合</strong>である。</p>
+<p><strong>発見の経緯</strong>: Docker + Playwright で「カート30,000円→受注確定（割引¥2,000）→
+管理画面で受注の数量を変更して¥12,000相当にし、『再計算』ボタンを押す」という
+実装計画タスク15ステップ8の手順を実行したところ、期待値は¥500引き（12,000円は
+10,000円以上30,000円未満の段）だったが、実際の表示は**¥2,500引き**だった。</p>
+<p><strong>原因調査</strong>: <code>usces_filter_order_discount_recalculation</code> フィルタの <code>$discount</code>
+引数を、実装は <code>usces_order_discount</code> と同じ「既存の割引額から減算」ロジック
+（<code>return $discount - self::calculate_amount( $cart );</code>）で扱っていた。
+しかし Welcart 側のソース（<code>functions/item_post.php</code> の <code>usces_order_recalculation()</code>）
+を読むと、この <code>$discount</code> は管理画面から送信される <code>$_POST['discount']</code>、
+つまり受注編集画面の「Campaign discount」欄に<strong>現在表示されている値</strong>
+（＝前回保存時に本プラグイン自身が書き込んだ割引額）がそのまま渡ってくる。
+<code>usces_order_discount</code> の <code>$discount</code> が呼び出しのたびにゼロから再計算される
+のとは前提が異なり、同じロジックを流用すると
+「前回の割引額 -2,000 に対して、新しい割引額 -500 をさらに減算」してしまい、
+<code>-2,000 - 500 = -2,500</code> という二重計上が発生していた。</p>
+<p><strong>修正</strong>: <code>includes/class-wcd-integration.php</code> の <code>filter_order_recalculation()</code> を、
+<code>$discount</code> に対する加減算をやめ、本プラグインの計算結果でそのまま置き換える形に
+修正した（コミット: <code>fix: 受注編集の再計算で割引が二重計上されるバグを修正</code>）。
+修正後、同じ手順を再実行し、¥500引き・合計¥11,500 と正しく表示されること、
+「再計算」ボタンを連打しても値が変わらない（べき等である）こと、
+「変更を保存する」で DB（<code>wp_usces_order.order_discount</code>）に <code>-500.00</code> として
+正しく保存されることを確認した。<code>composer lint</code> / <code>composer test</code>
+（15 tests, 17 assertions）も修正後に再実行し、いずれも通ることを確認した。</p>
+<p>このトレードオフとして、軽減税率変更時に Welcart 自身のキャンペーン割引が
+<code>$discount</code> に入っているケースではその値を上書きしてしまう可能性が残る。
+これは「常に再現する二重計上バグ」と「稀にしか組み合わないケースでの
+上書き」を比較した結果のトレードオフであり、詳細は <code>docs/design-notes.md</code> に
+記録した。</p>
+<h3 id="4-welcart-の受注は投稿タイプで-post-meta-が使えるという誤った前提2周目修正で訂正">4. 「Welcart の受注は投稿タイプで post meta が使える」という誤った前提（2周目修正で訂正）<a class="anchor" href="#4-welcart-の受注は投稿タイプで-post-meta-が使えるという誤った前提2周目修正で訂正">#</a></h3>
+<p>evaluator の REJECT（<code>.nipper/chot/feedback.md</code> の <code>recalculation-fix-soundness</code> 軸）を
+受け、上記3の「軽減税率変更時に上書きしてしまう」トレードオフをより精緻に解消する
+（本プラグインが前回注入した割引額だけを記録・差し戻す）実装に着手した際、
+最初に検討した実装方針は「受注を WordPress の投稿として扱い、<code>update_post_meta()</code> /
+<code>get_post_meta()</code> で前回注入額を記録する」というものだった。これは Welcart の他の
+多くの機能（商品は <code>usces_item</code> 投稿タイプ）から類推した、実ソースを確認する前の
+推測だった。</p>
+<p>Welcart 実ソース（<code>classes/usceshop.class.php</code>）を確認したところ、<strong>受注は独自テーブル
+<code>wp_usces_order</code> に保存され、<code>wp_posts</code> には存在しない</strong>ことが判明した。したがって
+post meta API はそもそも使用できない（<code>update_post_meta( $order_id, ... )</code> を呼んでも
+<code>$order_id</code> に対応する投稿が存在しないため、意図しない挙動になるか何も保存されない）。
+Welcart 自身が受注メタ用に <code>$usces-&gt;set_order_meta_value()</code> / <code>$usces-&gt;get_order_meta_value()</code>
+（実体は <code>wp_usces_order_meta</code> テーブルへの読み書き、<code>classes/usceshop.class.php:9334</code>,
+<code>:9342</code>）を用意しており、実装ではこちらを使うよう訂正した
+（コミット: <code>feat: 受注再計算で自プラグイン注入額のみを精緻に差し戻すよう改善</code>）。</p>
+<p><strong>教訓</strong>: 同一プラグイン内でも、エンティティによってデータの保存形式（投稿タイプ /
+独自テーブル）が異なりうる。「他の機能が投稿タイプだから、このエンティティも
+投稿タイプだろう」という類推は実ソース確認なしには成立しない。この訂正は
+コードを書く前に発覚したため実装への混入はなかったが、<code>filter_cart_table_footer</code>
+の引数仕様の誤り（上記1）と同種の「実ソース確認プロセスが機能した事例」として
+記録する。</p>
+<h3 id="5-受注再計算のコード修正後実機docker--playwrightで再検証した結果">5. 受注再計算のコード修正後、実機（Docker + Playwright）で再検証した結果<a class="anchor" href="#5-受注再計算のコード修正後実機docker--playwrightで再検証した結果">#</a></h3>
+<p>上記4の修正（<code>fix: カート表フッター挿入時に $usces-&gt;cart のnull安全性を確保</code> /
+<code>feat: 受注再計算で自プラグイン注入額のみを精緻に差し戻すよう改善</code>）はコードを
+書いた別の generator サブエージェントによるものであり、本タスク（ドキュメント担当）
+が実機で以下を再検証した。</p>
+<ul>
+<li>既存の Docker 環境（<code>docker compose -f docker/docker-compose.yml up -d</code>、既に起動済み）
+を用い、Playwright で管理画面にログインし直した（セッション切れのため
+<code>wp_set_password()</code> でパスワードを再設定した）。</li>
+<li><code>vendor/bin/phpunit</code> / <code>vendor/bin/phpcs</code> をコンテナ内で直接実行し、修正後のコードで
+<code>composer test</code>（15 tests, 17 assertions, OK）・<code>composer lint</code>（違反0件）を再確認した
+（ローカル環境に PHP が入っていなかったため、<code>docker exec docker-wordpress-1 ...</code> の形で
+実行した。既存の <code>vendor/</code> は bind mount 済みのため再インストール不要だった）。</li>
+<li>以前の検証（項目6補足）で作成済みの受注（ID 1000、修正前のコードで作成されたため
+<code>wcd_injected_discount</code> メタが未記録）を使い、受注編集画面での「Recalculation」を
+実際にクリックして再検証した。結果、<code>docs/design-notes.md</code>「受注再計算の既知の限界
+（2周目修正で判明）」に記録した通り、<strong>メタ未記録の既存受注に対する1回目の再計算は
+実際に二重計上した値（-1000）を返すこと</strong>、<strong>メタが正しく記録された状態からの
+再計算は正しい値（-2000）を返し、複数回クリックしても値が変わらないこと</strong>を
+実機で確認した。カート画面（フロント）についても、商品をカートに追加して
+「自動割引 -¥500」の行が正しく表示されることを確認し、null 安全性ガードの追加が
+通常のカート表示を壊していないことを確認した（<code>$usces-&gt;cart</code> が実際に null になる
+状況そのものは、通常のブラウザ操作では再現できなかった。これはコードレビューで
+対処した防御的分岐であり、この経路自体を実機で発火させることはできていない）。</li>
+<li>スクリーンショットは <code>docs/screenshots/12-recalc-known-limitation-first-time.png</code>
+（メタ未記録の受注での1回目の再計算、-1000 という誤った表示）、
+<code>docs/screenshots/13-recalc-clean-post-fix-2000.png</code>
+（メタが正しく記録された状態からの再計算、-2000 という正しい表示。2回連続で
+クリックしても値が変わらないことも確認）、
+<code>docs/screenshots/14-cart-regression-after-null-safety-fix.png</code>
+（null安全性修正後のカート画面。通常表示にリグレッションがないことの確認）
+として保存した。詳細な手順・DB上の状態遷移は <code>docs/verification.md</code> の
+「8. 受注再計算の精緻化（2周目修正）の再検証」に記録した。</li>
+</ul>
+<p>なお、本再検証（2周目修正時点）は新規に「カート30,000円→受注確定」というフロントの
+購入フローを最初からやり直すのではなく、既存の受注（ID 1000）を SQL で意図的に
+既知の状態（メタ未記録／メタ記録済みの双方）に戻しながら行った。理由は、上記
+「うまくいかなかったこと」に記録した通り、Welcart 管理画面の商品登録・購入確認フローが
+Playwright の合成操作と相性が悪く、フルフローを毎回再現するコストが高いためである。また、
+既存受注を使う方が「本修正より前に作成された受注」という、まさに検証したい既知の
+限界のシナリオを正確に再現でき、検証の目的に対してより直接的だった。</p>
+<p><strong>この判断はしかし、evaluator の REJECT（<code>order-meta-hook-coverage</code> 軸）で指摘された
+通り、「<code>usces_action_reg_orderdata</code> フック自体がフロント購入フローを通じて実際に
+発火することを確認していない」という別の穴を生んでいた</strong>。テスト商品（TEST-40000・
+TEST-3000）はすでに登録済みだったため、3周目修正では新規商品登録は不要であり、
+SKUを再利用してフロントの購入フローを最後まで実行することが実際にはそれほど
+コストが高くないことが分かった。3周目修正でのフルフロー実機確認の結果は
+「AIの出力が誤っていた箇所」6を参照。</p>
+<h3 id="6-usces_action_reg_orderdata-フックの新規受注フローでの発火が未確認だったこと3周目修正で解消">6. <code>usces_action_reg_orderdata</code> フックの新規受注フローでの発火が未確認だったこと（3周目修正で解消）<a class="anchor" href="#6-usces_action_reg_orderdata-フックの新規受注フローでの発火が未確認だったこと3周目修正で解消">#</a></h3>
+<p>evaluator の REJECT（<code>order-meta-hook-coverage</code> 軸）は、2周目修正で追加した
+<code>WCD_Integration::record_injected_discount_on_order_registration()</code>
+（<code>usces_action_reg_orderdata</code> に登録）について、フロントの購入フローを通じて
+実際に発火し、正しい値を <code>wp_usces_order_meta</code> へ記録することを確認した実機証跡が
+存在しない、と指摘した。指摘は正確だった。2周目の再検証（上記5）は既存受注に対する
+SQL 状態操作のみで、フックのコールバック自体が呼ばれたことは確認していなかった。</p>
+<p>3周目修正で、既存のテスト商品（TEST-40000・TEST-3000）を使いフロント購入フローを
+最後まで実行し、新しい受注（ID 1001）を確定させた。DB を直接クエリしたところ
+<code>wp_usces_order_meta</code>（order_id=1001）に <code>wcd_injected_discount = 2000</code> が
+自動的に記録されており、<code>record_injected_discount_on_order_registration()</code> が
+実際の受注登録経路で正しく発火・記録することを確認できた。詳細は
+<code>docs/verification.md</code>「9. 新規受注（フロント購入フロー）での受注メタ自動記録の
+実機確認」を参照。</p>
+<h3 id="7--2500-という数値と-ui-経由の回避策が実機未確認のまま記載されていたこと3周目修正で訂正">7. -¥2,500 という数値と UI 経由の回避策が実機未確認のまま記載されていたこと（3周目修正で訂正）<a class="anchor" href="#7--2500-という数値と-ui-経由の回避策が実機未確認のまま記載されていたこと3周目修正で訂正">#</a></h3>
+<p>evaluator の REJECT（<code>known-limitation-precision</code> 軸）は、<code>docs/design-notes.md</code>
+「受注再計算の既知の限界」節が、-¥1,000 の状態から数量10へ変更して再計算すると
+-¥2,500 になる、という記述を「実機で確認した」としていたが、実際には
+<code>docs/verification.md</code> 8-1 節は数量を変えずに「Recalculation」を押して -¥1,000 に
+なったことのみを確認しており、8-2 節はそこから連続してではなく SQL で改めて
+クリーンな状態に戻してから数量10への変更を検証していたため、-¥1,000 の状態から
+連続して数量10に変更した場合の -¥2,500 という数値は実機で確認されていない
+数式上の推定値だった、と指摘した。また、回避策として記載していた「Campaign discount
+欄を UI で手動編集して保存する」手順も、実際には SQL による DB 直接書き換えでしか
+検証していなかった。いずれも指摘は正確だった。</p>
+<p>3周目修正で、指摘された未検証の操作を実際に行った。既存受注（ID 1000）を
+SQL で「メタ未記録・数量4・discount=-500」の状態に戻し、まず数量を変えずに
+「Recalculation」を押して -¥1,000 になることを再現した。<strong>その状態のまま
+SQL でリセットせず</strong>続けて数量を10（¥30,000）に変更し、もう一度
+「Recalculation」を押したところ、表示は実際に <strong>-¥2,500</strong> となり、
+<code>docs/design-notes.md</code> の数式（telescoping 展開）による推定値と正確に一致した。
+続けて、この誤った状態から実際に管理画面の Campaign discount 欄（UI）へ <code>-2000</code>
+を直接入力し「change decision」で保存する操作を行い、保存後に DB
+（<code>order_discount = -2000.00</code>）へ正しく反映されること、以降の「Recalculation」が
+-¥2,000 のまま安定することを確認した。数式による事前の推定は結果的に正しかったが、
+「推定を実機確認と偽って書かない」というドキュメントの正確性の観点では2周目時点の
+記述に誤りがあった。詳細は <code>docs/verification.md</code>「10. 受注再計算の既知の限界の
+追加検証」を参照。</p>
+<h2 id="うまくいかなかったこと時間を要したこと">うまくいかなかったこと・時間を要したこと<a class="anchor" href="#うまくいかなかったこと時間を要したこと">#</a></h2>
+<h3 id="welcart-管理画面の新規商品登録で-playwright-の合成クリックが機能しなかった">Welcart 管理画面の「新規商品登録」で Playwright の合成クリックが機能しなかった<a class="anchor" href="#welcart-管理画面の新規商品登録で-playwright-の合成クリックが機能しなかった">#</a></h3>
+<p>テスト商品を登録する際、Welcart の「Add New Item」画面で <code>#publish</code> ボタンを
+Playwright の <code>browser_click</code>（内部的には <code>element.click()</code>）で押しても、
+<code>post.php</code> へのネットワークリクエストが一切発生せず、商品が <code>auto-draft</code> の
+ままになる事象が発生した。WordPress 標準の投稿編集画面が持つ
+「auto-draft から publish への遷移時に <code>history.replaceState()</code> で URL を
+書き換える」という JS（<code>wp-admin/js/post.js</code>）が関与しており、合成クリックでは
+実際のフォーム送信まで届かないケースがあることが分かった。
+最終的に <code>document.getElementById('post').submit()</code> を直接呼び出す形で回避したが、
+その際は <code>#publish</code> ボタンの <code>name=value</code>（<code>publish=Publish</code>）が送信データに
+含まれないため、Welcart 側の「どのボタンが押されたか」を見て分岐する保存処理
+（商品メタデータの保存など）が動かず、一度目は商品コード・商品名しか
+保存されないという二段階の試行錯誤が必要だった。最終的に隠しinput要素で
+<code>publish</code> フィールドを補って解決した。この一連の切り分けに検証時間の
+かなりの部分を要した。<strong>プラグイン自体の不具合ではなく、Welcart管理画面の
+複雑なJS（WordPress標準の投稿編集フローに独自のSKU登録処理を重ねている）と
+自動化ツールの相性の問題である。</strong></p>
+<h3 id="受注再計算の精緻化後も残る既知の限界未解決正直に記録する">受注再計算の精緻化後も残る既知の限界（未解決・正直に記録する）<a class="anchor" href="#受注再計算の精緻化後も残る既知の限界未解決正直に記録する">#</a></h3>
+<p>上記「AIの出力が誤っていた箇所」4・5に記録した通り、受注再計算の精緻化
+（<code>wcd_injected_discount</code> メタによる差し戻し）は、<strong>本修正より前に作成された受注</strong>
+（メタが一度も記録されていない受注）に対しては、修正後最初の1回の再計算に限り
+二重計上と同種の誤った値を返してしまう限界が残っている。2周目時点の実機検証では、
+数量を変えずに「Recalculation」を押して -¥1,000 になることまでは確認していたが、
+<strong>それ以降の再計算・数量変更でも、最初の誤りで生じた一定のずれ（本検証では¥500）を
+含んだ値を返し続ける</strong>という点（数式による説明は <code>docs/design-notes.md</code>
+「受注再計算の既知の限界」節に記録）は、実際には数式からの推定であり実機確認して
+いなかった。この点は evaluator の REJECT（<code>known-limitation-precision</code> 軸）で
+指摘を受け、3周目修正で「AIの出力が誤っていた箇所」7に記録した通り実機で確認し、
+-¥1,000 の状態から連続して数量10へ変更すると実際に -¥2,500 になる（推定と一致）
+ことを確認した。この状態から正しい値に戻すには、管理者が「Campaign discount」欄の
+値を手動で正しい額に修正して保存する（再計算フィルタを経由しない）必要があり、
+この回避策も3周目修正で SQL ではなく実際の管理画面 UI 操作として実機確認した。</p>
+<p>この限界は、本修正のスコープでは解消しきれなかった。理由は、Welcart のフィルタ
+引数だけでは「そもそも過去にこのプラグインが割引を注入したことがあるかどうか」を
+判別する手段がなく（メタが存在しない＝未注入なのか、単に旧バージョンのプラグインで
+注入したが記録の仕組みがなかっただけなのかを区別できない）、後者を安全側に倒すと
+（＝メタなしを「注入額0」と仮定する）今回確認した限界が残り、逆に前者を安全側に
+倒す判断基準もない、というトレードオフのためである。実運用では「本プラグインの
+バージョンアップ直後に全受注へ一括でメタを再構築するマイグレーション処理」を
+別途用意すれば解消できるが、本課題のスコープ（第一段階の実装）を超えるため
+今回は実装していない。</p>
+<h3 id="国際配送バリデーションでdelivery-method-is-incorrectエラー">国際配送バリデーションで「Delivery method is incorrect」エラー<a class="anchor" href="#国際配送バリデーションでdelivery-method-is-incorrectエラー">#</a></h3>
+<p>購入確認画面で「Next」を押すと <code>Delivery method is incorrect. Specify the international flights.</code> というエラーで先に進めない事象が発生した。
+配送方法設定で「Possible Delivery Area」を Domestic Shipment に設定していたが、
+テスト用の顧客住所を米国の州（カリフォルニア州）で入力していたため、
+Welcart 側がこれを Domestic ではなく International 扱いと判定していたことが
+原因と推測される。配送方法の設定を International Shipment に切り替えることで
+回避した。根本原因（Welcart の国内/海外判定ロジックの詳細）までは
+時間の制約上、深く追跡していない。</p>
+<p><strong>3周目修正での追記</strong>: 3周目修正のフロント購入フロー実機確認（<code>docs/verification.md</code>
+「9」節）では、同じくカリフォルニア州の顧客住所で「通常配送」（Domestic 側の設定の
+まま）を選択したにもかかわらず、このエラーは再現しなかった。原因の切り分けは
+行っていないが、以前の検証時に配送設定を International Shipment に切り替えた変更が
+そのまま残っていた可能性、またはセッション・カート内容（今回はセッションに残っていた
+既存カート内容と新規追加商品が混在していた）の違いが影響した可能性がある。
+いずれにせよ、これはプラグイン自体の割引ロジックとは無関係な Welcart 配送設定の
+挙動であり、本課題のスコープ外として深追いはしていない。</p>
+<h3 id="未完了だった項目第一段階時点">未完了だった項目（第一段階時点）<a class="anchor" href="#未完了だった項目第一段階時点">#</a></h3>
+<p>実装計画タスク15のステップ3〜8はすべて実施できた。3周目修正では、evaluator の
+指摘に基づき、新規受注フローでのフック発火確認（<code>docs/verification.md</code> 9節）と
+既知の限界の追加検証（同10節）を追加で実機確認した。第二段階（会員ランク・
+商品カテゴリ除外の実装）は本設計書・実装計画の対象外であり、この時点では
+着手していなかった（当初から意図的にスコープ外としていた）。以下「第二段階:
+除外条件設定」に、実際に実装した経緯を記録する。</p>
+<hr>
+<h2 id="第二段階-除外条件設定会員ランク商品カテゴリ">第二段階: 除外条件設定（会員ランク・商品カテゴリ）<a class="anchor" href="#第二段階-除外条件設定会員ランク商品カテゴリ">#</a></h2>
+<p>加点要件「特定の会員ランクや商品カテゴリを除外する条件設定」の実装。設計は
+<code>.nipper/chot/specs/2026-08-20-welcart-cart-discount-exclusions-design.md</code>、
+実装計画は <code>.nipper/chot/plans/2026-08-20-welcart-cart-discount-exclusions.md</code>。</p>
+<p>brainstorming → writing-plans → generator（並列生成、タスク1〜11をバッチで
+割り当て）→ docs（タスク12・提出物ドキュメント更新）という基本の流れ自体は
+第一段階と同じ chot-harness の構成を踏襲したが、実際にはそこで終わらなかった。
+docs 完了後、evaluator が2周目の評価で REJECT と判定し（<code>rank-resolution-context-correctness</code>
+軸・<code>test-coverage-quality</code> 軸）、コード側の該当箇所を修正した（受注再計算部分の
+try/finally による静的プロパティ保護、および会員ランク0の境界値の回帰テスト追加。
+コミット <code>d66e4e9</code>・<code>38a9ae6</code>）。しかしこの2周目修正はコードのみに留まり、
+本レポート・<code>docs/design-notes.md</code>・<code>docs/verification.md</code> のいずれにも反映されて
+いなかったため、evaluator は3周目の評価で再び REJECT と判定した（<code>ai-report-accuracy</code>
+軸・<code>eval-feedback-loop-documented</code>軸・<code>documentation-cross-consistency</code>軸ほか）。
+本節（本タスク）はその3周目の指摘を受けたドキュメント側の修正である。
+第一段階（本レポート冒頭「使用ツールと進め方」4参照）でも同種の evaluator
+REJECT→修正サイクルが発生しており、第二段階でも同じ構造の指摘が再現したことになる。
+詳細は後述の項11に記録する。</p>
+<h3 id="8-writing-plans-フェーズで発見した設計書内の記述矛盾">8. writing-plans フェーズで発見した設計書内の記述矛盾<a class="anchor" href="#8-writing-plans-フェーズで発見した設計書内の記述矛盾">#</a></h3>
+<p>除外条件設計書の「既存ファイルへの変更」表は <code>includes/class-wcd-integration.php</code> を
+「変更しない」と記載していたが、同じ設計書内の「データフロー／経路2」節は、受注編集の
+再計算時に対象受注IDを <code>WCD_Exclusion</code> へ通知する静的プロパティのセット／解除を
+<code>filter_order_recalculation()</code> の実行中に行うと明記しており、両者は両立しない
+（<code>$order_id</code> を保持しているのは <code>filter_order_recalculation()</code> の引数のみであり、
+そこから2行追加する以外に受け渡す手段がない）。</p>
+<p><strong>発見方法</strong>: 設計書の2つの節を実装計画作成のために突き合わせた際、「ファイル変更なし」
+という記述と「そのファイルのメソッド本体を編集する」という記述が矛盾していることに
+気づいた。コードを書く前、計画段階での突き合わせで発見できたため、実装のやり直しは
+発生していない。</p>
+<p><strong>修正方法</strong>: 「フィルタのシグネチャ・フィルタ契約（引数の数や意味）は変えないが、
+メソッド本体には最小限の2行（<code>WCD_Exclusion::begin_order_recalculation( $order_id )</code> /
+<code>end_order_recalculation()</code>）を追加する」という、両節の意図（安全に実装したいという
+制約と、正しくランクを解決したいという要件）を両立させる方針に修正した
+（タスク7、コミット <code>feat: 受注再計算時に対象受注IDを WCD_Exclusion へ通知する</code>）。</p>
+<h3 id="9-wcd_exclusion_settingsnormalize-の-categories-正規化バグタスク1担当が実装中に発見">9. <code>WCD_Exclusion_Settings::normalize()</code> の categories 正規化バグ（タスク1担当が実装中に発見）<a class="anchor" href="#9-wcd_exclusion_settingsnormalize-の-categories-正規化バグタスク1担当が実装中に発見">#</a></h3>
+<p>タスク1（<code>WCD_Exclusion_Calculator</code>）の担当ではなく、実際にはタスク2
+（<code>WCD_Exclusion_Settings::normalize()</code>）の実装中に、TDD のテスト
+（<code>test_casts_category_to_absint_and_discards_non_positive</code>、<code>array( '5', 0, -1 )</code> を
+渡すと <code>array( 5 )</code> のみが残るべき、という期待値）を書いた段階で、計画書のサンプル
+コードそのものに論理バグがあることに気づいた。計画書のコードは <code>absint()</code> を先に
+適用してから <code>$category_id &lt;= 0</code> で0以下判定を行っていたため、<code>absint( -1 )</code> が
+絶対値の <code>1</code> になり、非正数判定をすり抜けて <code>1</code> として残ってしまう
+（本来は破棄すべき負値のカテゴリIDが有効なカテゴリIDとして保存される不具合）。</p>
+<p>これは第一段階の <code>WCD_Settings::normalize()</code> で踏んだのと同種の落とし穴
+（本レポート「AIの出力が誤っていた箇所」2、<code>absint()</code> を先に適用すると符号情報が
+失われる）が、今回は設計書・実装計画のサンプルコード自体の記述段階で再発したもの。
+第一段階では実装前のコードレビューで防げていたが、今回は計画書の疑似コードに
+紛れ込んでいたため、実装担当の generator が TDD のステップ2（失敗するテストの実行）
+で実際に検出する形になった。</p>
+<p><strong>修正</strong>: チェック順序を入れ替え、<code>is_numeric( $category ) &amp;&amp; $category &lt;= 0</code> の判定を
+<code>absint()</code> 適用前の生値に対して行うようにした（<code>includes/class-wcd-exclusion-settings.php</code>）。
+第一段階のコメント規約を踏襲し、同じ理由をコード内コメントとして残している。</p>
+<h3 id="10-wpcs違反の修正と参照した先例コミットのハッシュ表記の誤り">10. WPCS違反の修正と、参照した先例コミットのハッシュ表記の誤り<a class="anchor" href="#10-wpcs違反の修正と参照した先例コミットのハッシュ表記の誤り">#</a></h3>
+<p>タスク10（WPCS準拠確認）で <code>composer lint</code> を実行したところ、3件の違反
+（DocComment短文の書き出し規則、ブロックコメント前の空行不足、インラインコメント
+末尾の全角句点）が検出された。第一段階の先例（実装計画・本レポートともに
+<code>344b685 style: WPCS違反を解消</code> という表記で参照していた）と同じ方針（<code>phpcbf</code> の
+一括自動修正は使わず、各違反の意味を確認しながら手動で直す。全角句点をASCIIピリオド
+に統一する等）で手動修正した（コミット <code>0e062b6 style: 除外条件実装のWPCS違反を 解消</code>）。</p>
+<p><strong>表記の誤りの発見</strong>: 修正時に先例コミットを <code>git log</code> で確認したところ、実際の
+ハッシュは <code>2042131</code>（<code>git log --pretty=format:&quot;%h %ad %s&quot; --date=iso --reverse</code> の
+出力）であり、実装計画・本レポート冒頭「コミット順序と実装計画のタスク番号の関係」に
+記載していた <code>344b685</code> はこのリポジトリの現在の履歴には存在しないハッシュだった
+（<code>git cat-file -t 344b685</code> は <code>fatal: Not a valid object name</code> を返す）。コミット
+メッセージ・日時（<code>2026-08-18 14:48:58 +0900</code>）は一致するため同一コミットを指しているが、
+ハッシュ値そのものが本レポート初版の記録時点から変化している。原因は本レポート作成後の
+リポジトリ側の履歴操作（例: 大容量ファイルの除去や初期コミットの手直しに伴う後続コミットの
+連鎖的なハッシュ変化）と推測されるが、本タスクの範囲では特定していない。本節では
+実際に確認できた正しいハッシュ <code>2042131</code> を記録するに留め、冒頭の「コミット順序」節の
+埋め込みログ全体（第一段階分）を遡って書き換えることはしていない（当時実際に出力された
+コマンド結果の記録として残す方が、後から辻褄を合わせるより誠実だと判断した）。読者が
+先例コミットを実際に参照する場合は、コミットメッセージ・日時、または現在の
+<code>git log --oneline</code> の該当行（<code>2042131 style: WPCS違反を解消</code>）を使うこと。</p>
+<h3 id="11-受注再計算の例外安全性とランク0境界値のテスト漏れ2周目のevaluator-rejectで指摘修正3周目でドキュメント化">11. 受注再計算の例外安全性とランク0境界値のテスト漏れ（2周目のevaluator REJECTで指摘・修正、3周目でドキュメント化）<a class="anchor" href="#11-受注再計算の例外安全性とランク0境界値のテスト漏れ2周目のevaluator-rejectで指摘修正3周目でドキュメント化">#</a></h3>
+<p>タスク12（本節冒頭のドキュメント更新）を終えた時点のコードに対し、evaluator が
+2周目の評価で2件の指摘を行った（<code>rank-resolution-context-correctness</code> 軸・
+<code>test-coverage-quality</code> 軸。この時点の指摘は現在の <code>.nipper/chot/feedback.md</code> には
+残っていない（その後の3周目評価の内容で上書きされている）が、指摘内容と対応する
+コミットは以下の通り実在する）。</p>
+<p><strong>指摘1（<code>rank-resolution-context-correctness</code> 軸）</strong>: 上記8で追加した
+<code>WCD_Exclusion::begin_order_recalculation() / end_order_recalculation()</code> の対称呼び出しは、
+実装当初 <code>WCD_Integration::filter_order_recalculation()</code> 内で
+<code>begin...(); $amount = self::calculate_amount( $cart ); end...();</code> という素朴な直列呼び出しに
+なっていた。<code>calculate_amount()</code> の内部では <code>wcd_eligible_subtotal</code> / <code>wcd_available_rules</code>
+という、他プラグインも購読しうる公開フィルタを呼び出しており、これらのコールバックが
+例外を送出すると <code>end_order_recalculation()</code> が実行されないまま関数を抜け、静的プロパティ
+<code>WCD_Exclusion::$recalculating_order_id</code> が残留してしまう。残留すると、以降にカート画面・
+購入確認画面で発生するランク解決（本来はセッション中のログイン会員を見るべき）が誤って
+「受注再計算中」の分岐に迂回し、無関係な購入者のランクを受注の持ち主のランクと誤認する
+おそれがあった。指摘は技術的に正しかった。</p>
+<p><strong>指摘2（<code>test-coverage-quality</code> 軸）</strong>: <code>WCD_Exclusion_SettingsTest.php</code> の ranks 系テストが、
+会員ランク <code>0</code> の境界値を検証していなかった。<code>WCD_Exclusion_Settings::normalize()</code> の
+<code>ranks</code> は「<code>known_ranks</code> に含まれていれば保持し、含まれていなければ破棄する」という
+仕様であり、これは同じ <code>normalize()</code> 内の <code>categories</code>（「0以下は無条件に破棄する」）とは
+非対称な境界挙動である。この非対称性を固定する回帰テストが欠けていた、という指摘も
+正確だった。</p>
+<p><strong>修正方法</strong>:</p>
+<ul>
+<li>指摘1に対し、<code>calculate_amount( $cart )</code> の呼び出しを try/finally で囲み、例外発生時にも
+<code>end_order_recalculation()</code> が確実に呼ばれるよう修正した
+（<code>includes/class-wcd-integration.php</code>、コミット <code>d66e4e9 fix: 受注再計算の例外発生時にも 受注ID通知を確実に解除する</code>）。</li>
+<li>指摘2に対し、<code>test_rank_zero_is_preserved_when_in_known_ranks()</code> /
+<code>test_rank_zero_is_discarded_when_not_in_known_ranks()</code> の2件を
+<code>WCD_Exclusion_SettingsTest.php</code> に追加した（コミット <code>38a9ae6 test: 会員ランク0の境界値 （categoriesとの非対称性）を回帰テストに追加する</code>）。実装コード
+（<code>includes/class-wcd-exclusion-settings.php</code>）自体は変更していない。既存実装のまま
+2件ともPASSすることを確認済み。</li>
+</ul>
+<p>この2件のテスト追加により、単体テストの総数は次項「単体テスト件数」に記録した
+<strong>44件から46件</strong>へ増えた。<strong>しかし <code>docs/verification.md</code>「最終確認」節（<code>composer test</code> /
+<code>composer lint</code> の最終確認）は、この2周目修正より前の44件のまま更新されておらず、
+実際のコードベースと食い違っている</strong>（<code>docs/verification.md</code> の当該記録を追加した
+コミット 1258924 は 2026-08-20 10:37 時点、d66e4e9・38a9ae6 は同日 10:49 時点であり、
+後者の方が新しい）。この訂正は <code>docs/verification.md</code>「18. composer test /
+composer lint の最終確認」節で、本タスクと並行するもう一方の generator により
+コミット <code>4028058</code>（本コミット <code>01f7ca8</code> より後）で既に反映済みであり、両ドキュメント
+とも現在は「46 tests, 53 assertions」で一致している。なぜ44件と46件の2つの数字が
+一時的に併存していたのかという経緯を、ドキュメント側からも本項で追えるようにしておく。</p>
+<p><strong>教訓</strong>: 2周目修正でコード（try/finally・回帰テスト）は正しく直したにもかかわらず、
+その修正をドキュメント（本レポート・<code>docs/design-notes.md</code>・<code>docs/verification.md</code>）に
+反映する作業が漏れていた。第一段階では evaluator REJECT サイクルのたびに
+「AIの出力が誤っていた箇所」の項目として記録していた（上記4・6・7）が、第二段階では
+この記録作業自体が抜け落ち、3周目の evaluator の再REJECTで指摘されて初めて気づいた。
+コード修正とドキュメント更新を同じレビューサイクルで扱わないと、両者が容易に
+乖離するという実例として記録する。</p>
+<h3 id="単体テスト件数-実装計画の想定32件と実際44件2周目修正で46件の乖離">単体テスト件数: 実装計画の想定（32件）と実際（44件→2周目修正で46件）の乖離<a class="anchor" href="#単体テスト件数-実装計画の想定32件と実際44件2周目修正で46件の乖離">#</a></h3>
+<p>タスク1の実装中、実装計画の「タスク3」節が「第一段階の既存15件 + タスク1の10件 +
+タスク2の7件 = 32件」と想定していたのに対し、実際に <code>tests/unit/</code> に存在する
+既存テストは27件（<code>WCD_RuleTest</code> 4件、<code>WCD_CalculatorTest</code> 6件、<code>WCD_SettingsTest</code>
+6件、<code>WCD_Cart_Row_BuilderTest</code> 11件）であることに気づいた。第一段階の完了後、
+本レポート初版記載の15件から <code>WCD_Cart_Row_BuilderTest</code>（11件）が追加されており、
+実装計画作成時に参照した「15件」という数字はその追加前の値のまま古くなっていた。
+新規17件（<code>WCD_Exclusion_CalculatorTest</code> 10件 + <code>WCD_Exclusion_SettingsTest</code> 7件）と
+合わせた実装当初の合計は <strong>44件</strong>であった。この乖離は機能に影響しないため実装方針は
+変更していないが、実装計画中の期待値の数字を鵜呑みにせず <code>phpunit</code>
+（<code>composer test</code>）の実際の出力で都度確認する必要がある、という実例として記録する。</p>
+<p><strong>その後の更新（2周目修正）</strong>: 上記「11. 受注再計算の例外安全性とランク0境界値の
+テスト漏れ」で記録した通り、2周目のevaluator REJECTを受けて<code>WCD_Exclusion_SettingsTest.php</code>
+にランク0境界値の回帰テスト2件（コミット <code>38a9ae6</code>）を追加したため、<strong>現在の実際の
+合計は46件</strong>である（<code>vendor/bin/phpunit</code> 実測: 46 tests, 53 assertions）。本節が
+記録する44件という数字は実装当初（タスク1〜11完了時点）のものであり、現時点の
+最終値ではない点に注意すること。</p>
+<h3 id="並行-generator-間のコミット競合とその復旧並列運用上の実例">並行 generator 間のコミット競合とその復旧（並列運用上の実例）<a class="anchor" href="#並行-generator-間のコミット競合とその復旧並列運用上の実例">#</a></h3>
+<p>タスク7（<code>WCD_Integration::filter_order_recalculation()</code> への文脈受け渡し追加）担当と
+タスク8・9（<code>WCD_Admin</code> の除外設定UI追加・保存処理接続）担当は、generator フェーズで
+同一バッチ内の別サブエージェントとして並行実行された。作業対象ファイルは分かれていた
+（タスク7は <code>includes/class-wcd-integration.php</code>、タスク8・9は
+<code>includes/class-wcd-admin.php</code>）にもかかわらず、タスク7担当が <code>git add</code> 後に
+<code>git commit</code> した際、並行してステージされていたタスク8・9担当の
+<code>class-wcd-admin.php</code> の変更を巻き込んでコミットしてしまう競合が一時的に発生した。
+双方とも、他方が作業ツリーに残していた変更履歴を失わせないよう <code>git rebase</code> や
+<code>git commit --amend</code> は使わず、<code>git reset --soft</code> で直前のコミットを取り消してから
+対象ファイルを個別に <code>git add</code> し直し、意図通りの分離コミット（<code>0801e20</code> /
+<code>b7bc047</code> / <code>63a232e</code>）に復旧した。この経緯は <code>git reflog</code> にも残っている
+（<code>53713ee</code> への <code>reset: moving to HEAD~1</code> のエントリ）。同一リポジトリ上で複数
+generator サブエージェントが並行して <code>git add</code> / <code>git commit</code> を行う運用では、
+ステージング領域が共有資源になるため、担当ファイルを明示的に指定した <code>git add</code>
+（<code>git add -A</code> を避ける）だけでは競合を完全には防げず、発生時の復旧手順
+（他者の履歴を書き換えない <code>git reset --soft</code> の使用）まで含めて運用ルールに
+織り込む必要があることを示す実例だった。</p>
+<h3 id="第二段階のコミット順序と実装計画のタスク番号の関係">第二段階のコミット順序と実装計画のタスク番号の関係<a class="anchor" href="#第二段階のコミット順序と実装計画のタスク番号の関係">#</a></h3>
+<p><code>git log --pretty=format:&quot;%h %ad %s&quot; --date=iso --reverse</code> で確認すると、第二段階
+（タスク1〜11）の実際のコミット順序は次の通りで、計画のタスク番号順（1→11の昇順）と
+<strong>完全に一致した</strong>。</p>
+<pre><code>eae51e1 2026-08-20 10:03:48 +0900 feat: WCD_Exclusion_Calculator による除外の純粋計算を追加        (タスク1)
+c542bff 2026-08-20 10:05:12 +0900 feat: WCD_Exclusion_Settings::normalize() による除外設定の正規化を追加  (タスク2)
+adaac81 2026-08-20 10:05:46 +0900 chore: 除外設定クラスの require を配線する                          (タスク3)
+6300dec 2026-08-20 10:07:16 +0900 feat: WCD_Exclusion_Settings に option の読み書きを追加            (タスク4)
+897cc2f 2026-08-20 10:07:53 +0900 feat: WCD_Exclusion アダプタでカテゴリ除外・ランク除外のフィルタコールバックを実装 (タスク5)
+53713ee 2026-08-20 10:08:55 +0900 feat: 除外用フィルタ2本を WCD_Exclusion に登録する                  (タスク6)
+0801e20 2026-08-20 10:09:41 +0900 feat: 受注再計算時に対象受注IDを WCD_Exclusion へ通知する            (タスク7)
+b7bc047 2026-08-20 10:10:51 +0900 feat: 設定画面に除外条件（会員ランク・商品カテゴリ）のUIを追加        (タスク8)
+63a232e 2026-08-20 10:11:08 +0900 feat: 除外設定の保存を既存のnonce・権限チェックに相乗りさせる         (タスク9)
+0e062b6 2026-08-20 10:14:09 +0900 style: 除外条件実装のWPCS違反を解消                                (タスク10)
+e1884f9 2026-08-20 10:15:26 +0900 chore: 除外設定の翻訳文字列を .pot に反映する                       (タスク11)
+</code></pre>
+<p>第一段階（本レポート冒頭「コミット順序と実装計画のタスク番号の関係」節）では、
+Docker/CI 設定タスクの先出しやタスク6〜10の内部順序の入れ替わりなど、計画の番号順との
+乖離が生じていた。第二段階でこの乖離がほぼ解消された理由は、今回はタスク間の依存関係が
+直列に近い形（<code>WCD_Exclusion_Calculator</code> → <code>WCD_Exclusion_Settings</code> → require配線 →
+<code>get</code>/<code>save</code> → アダプタ → フィルタ登録 → Integration連携 → Admin UI → Admin保存 →
+lint → i18n）で、独立して並列実行できるタスクの組が第一段階ほど多くなかったためと
+考えられる。唯一、タスク7とタスク8・9は実際には同一バッチで並行実行されており（上記
+「並行 generator 間のコミット競合とその復旧」参照）、コミットの一時的な競合が発生した
+にもかかわらず、復旧後の最終的なコミット順序は計画のタスク番号順と一致した。</p>
+<hr>
+<h2 id="e2e-テストplaywright">E2E テスト（Playwright）<a class="anchor" href="#e2e-テストplaywright">#</a></h2>
+<p>加点要件「テストコード」の拡張として、<code>docker/</code> 検証環境に対する Playwright E2E テスト
+（<code>e2e/</code>）を追加した。設計（<code>.nipper/chot/specs/2026-08-20-e2e-tests-design.md</code>）・
+実装計画（<code>.nipper/chot/plans/2026-08-20-e2e-tests.md</code>）の作成、実装（タスク1〜9）、
+本節を含むドキュメント更新（タスク10・11）はいずれも Claude Code が同一セッション内で
+担当した。</p>
+<p><strong>実装計画そのものがコード例を含んでおり、それ自体が AI（writing-plans フェーズの
+Claude Code）の出力である。</strong> 実装（タスク1〜9）で実機検証すると、計画書のコード例の
+大半に実際の Welcart 挙動との相違が見つかった。「計画書は正しいはず」と鵜呑みにせず、
+1つずつ実機で確認しながら実装した結果、以下の誤りを実装が実際にコードへ混入する前に
+（あるいは1回の実行結果として）発見・修正できた。第一段階・第二段階の教訓
+（実ソース確認プロセスの重要性、上記1・4・8など）が、E2Eというブラウザ操作の領域でも
+同型で再現した形になる。</p>
+<h3 id="12-商品の投稿タイプに関する誤った前提">12. 商品の投稿タイプに関する誤った前提<a class="anchor" href="#12-商品の投稿タイプに関する誤った前提">#</a></h3>
+<p>Welcart の商品は独自の投稿タイプ（<code>usces_item</code> 等）を持つという想定は、第一段階の
+「受注が独自テーブルか投稿タイプか」（上記「AIの出力が誤っていた箇所」4）と対になる
+誤りだった。実際には <code>post_type=post</code> に <code>post_mime_type=item</code> を付与した投稿として
+保存されている。加えて <code>wp post list --post_type=... --post_mime_type=item</code> は
+<code>WP_Query</code> 経由だと0件を返す（Welcart 側のフックが介在するとみられる。原因の完全な特定
+までは行っていない）ことも実機で判明した。<code>e2e/bin/env-up.sh</code> の商品数チェックは
+<code>wp eval</code> 経由で <code>$wpdb-&gt;get_var()</code> により <code>wp_posts</code> を直接カウントする方式に修正した
+（<code>WHERE post_type=&quot;post&quot; AND post_mime_type=&quot;item&quot; AND post_status=&quot;publish&quot;</code>）。</p>
+<h3 id="13-カート画面のurlusces-cart-ではなく-page_id5">13. カート画面のURL（<code>/usces-cart/</code> ではなく <code>/?page_id=5</code>）<a class="anchor" href="#13-カート画面のurlusces-cart-ではなく-page_id5">#</a></h3>
+<p>設計書・実装計画のコード例はいずれもカートURLを <code>/usces-cart/</code> と想定していたが、
+この検証環境のパーマリンク設定が「基本」（プレーン）であるため実際には404になる
+（<code>curl</code> で確認）。カートページの実体は固定ページで、そのページIDは option
+<code>usces_cart_number</code> が保持している（この環境では5）。<code>e2e/helpers/shop.ts</code> の
+<code>CART_URL</code> を <code>/?page_id=5</code> に修正した。</p>
+<h3 id="14-商品ページへの導線トップページの一覧に全商品が出ない">14. 商品ページへの導線（トップページの一覧に全商品が出ない）<a class="anchor" href="#14-商品ページへの導線トップページの一覧に全商品が出ない">#</a></h3>
+<p>実装計画はトップページから商品名リンクを探してクリックする方式を想定していたが、
+実測するとトップページには25商品中一部（6点）しか一覧表示されず、テストで使う
+Practice Pad Set 等がそこに現れなかった。<code>ITEMS</code> に商品ページURL（<code>?p=&lt;投稿ID&gt;</code>）を
+直接持たせ、そこへ遷移する方式に変更した（<code>e2e/helpers/shop.ts</code>）。</p>
+<h3 id="15-page-フィクスチャのシャドウィングによるカート内容の喪失実装中に発生自己発見して修正">15. <code>page</code> フィクスチャのシャドウィングによるカート内容の喪失（実装中に発生・自己発見して修正）<a class="anchor" href="#15-page-フィクスチャのシャドウィングによるカート内容の喪失実装中に発生自己発見して修正">#</a></h3>
+<p>Welcart のカートはセッション（cookie）で保持される。Playwright の <code>page</code> フィクスチャは
+テストごとに新しいブラウザコンテキスト（cookie未保持）を生成するため、serial実行の
+複数テストで素朴に <code>{ page }</code> を受け取ると2件目以降でカートが空になる問題があった。
+これは計画書のコード例（各 <code>test(...)</code> のコールバックで <code>{ page }</code> を分割代入する形）を
+そのまま実装したことで<strong>実際に一度発生させてしまった</strong>不具合であり、他の項目のような
+「実装前に発見した誤り」ではない。<code>test.beforeAll</code> で単一の <code>page</code> を生成して
+<code>describe</code> ブロック内の全テストで使い回す方式に修正して解決した
+（<code>e2e/tests/01-cart-display.spec.ts</code>、<code>02-checkout-consistency.spec.ts</code>）。</p>
+<h3 id="16-次へボタンの-name-属性は画面ごとに異なる">16. 「次へ」ボタンの name 属性は画面ごとに異なる<a class="anchor" href="#16-次へボタンの-name-属性は画面ごとに異なる">#</a></h3>
+<p>実装計画は購入フロー全画面で共通の <code>nextpage</code> という name を想定していたが、実際には
+画面ごとに異なる（カート→お客様情報: <code>customerinfo</code>、お客様情報→配送: <code>deliveryinfo</code>、
+配送→確認: <code>confirm</code>、確認→完了: <code>purchase</code>）。実際にカートから購入完了まで進めて
+確認し、<code>e2e/helpers/shop.ts</code> の <code>completePurchase()</code> を画面ごとの実測値に修正した。</p>
+<h3 id="17-お客様情報フォームの入力項目不足">17. お客様情報フォームの入力項目不足<a class="anchor" href="#17-お客様情報フォームの入力項目不足">#</a></h3>
+<p>実装計画は住所欄を単一の <code>address1</code> のみと想定していたが、実際のフォームは
+<code>pref</code>（都道府県、セレクト必須）／<code>address1</code>（市区郡町村）／<code>address2</code>（番地、
+「＊番地」として必須）の3分割で、<code>address2</code> を埋めないと先へ進めなかった。
+メールアドレスも確認用の <code>mailaddress2</code> が別途必須だった。いずれも計画書のコード例には
+含まれておらず、実ページのフォームを確認して <code>TEST_CUSTOMER</code> とフォーム入力処理
+（<code>completePurchase()</code>）に追加した。</p>
+<h3 id="18-完了画面に受注番号が表示されない正規表現スクレイピング方式は成立しなかった">18. 完了画面に受注番号が表示されない（正規表現スクレイピング方式は成立しなかった）<a class="anchor" href="#18-完了画面に受注番号が表示されない正規表現スクレイピング方式は成立しなかった">#</a></h3>
+<p>実装計画は完了画面の本文を正規表現（<code>/(\d{3,})/</code> 等）でスクレイピングして受注IDを
+取得する方式を想定していたが、検証用テーマの完了画面は Welcart 本体の汎用完了
+テンプレートをそのまま使用しており、受注番号を一切表示しない（定型文のみ）ことが
+実機で判明した。この方式は原理的に成立しない誤りだった。<code>e2e/helpers/wpcli.ts</code> に
+<code>getLatestOrderId()</code> を追加し、<code>wp eval</code> 経由で <code>$wpdb-&gt;get_var(&quot;SELECT MAX(ID) FROM {$wpdb-&gt;prefix}usces_order&quot;)</code> により受注テーブルを直接問い合わせる方式に変更した。</p>
+<h3 id="19-受注編集画面のurlはnonce必須で直接構築できない">19. 受注編集画面のURLはnonce必須で直接構築できない<a class="anchor" href="#19-受注編集画面のurlはnonce必須で直接構築できない">#</a></h3>
+<p>実装計画は <code>admin.php?page=usces_orderlist&amp;order_action=edit&amp;order_id=&lt;ID&gt;</code> へ
+直接遷移する方式を想定していたが、実際にはnonceが無いとWelcart側のディスパッチャが
+リクエストを受け付けず、受注リスト画面が表示されるだけで編集画面に遷移しない。
+WP-CLIで生成したnonce（<code>wp_create_nonce()</code>）はログインセッションのセッショントークンを
+鍵の一部に含むため、ブラウザのログインセッションに対しては使えない。そのため、受注
+リスト画面を開いて実際に描画された（本物のnonce付きの）リンクを<code>href</code>から取得し、
+そこへ遷移する方式に変更した（<code>e2e/helpers/admin.ts</code> の <code>openOrderEdit()</code>）。
+実装の過程で、<code>href</code>の部分一致セレクタでは<code>order_id=101</code>が<code>order_id=1014</code>にも
+誤って一致することにも気づき、<code>URL#searchParams</code>で厳密に比較する方式にした。</p>
+<h3 id="20-wp-db-query-のtlssslエラー">20. <code>wp db query</code> のTLS/SSLエラー<a class="anchor" href="#20-wp-db-query-のtlssslエラー">#</a></h3>
+<p>計画書の調査ステップは <code>wp db query</code> によるDB直接問い合わせを例示していたが、この
+検証環境では <code>wp db query</code> がTLS/SSLエラーで失敗する。DB直接問い合わせが必要な箇所
+（受注ID取得など）はすべて <code>wp eval</code> 経由で <code>$wpdb</code> を使う方式に統一した。</p>
+<h3 id="21-意図的な失敗確認空振り検知の実施記録2周目修正">21. 意図的な失敗確認（空振り検知）の実施記録（2周目修正）<a class="anchor" href="#21-意図的な失敗確認空振り検知の実施記録2周目修正">#</a></h3>
+<p>evaluator の REJECT（<code>idempotency-verification-integrity</code> 軸・<code>intentional-failure-checks</code> 軸・
+<code>plan-compliance</code> 軸）を受けて、実装計画タスク4ステップ5・タスク7ステップ3が要求する
+「意図的に条件を壊してテストが空振りしないことを確認する」検証を、稼働中の Docker
+検証環境（<code>http://localhost:8080</code>）に対して実際に自分の手で再実施した。evaluator の
+指摘は、検証自体は evaluator が代わりに実施して健全性を確認済みだが、<strong>提出物のどこにも
+実施記録が残っておらず第三者が確認できない</strong>という点だった。以下はその再実施の記録であり、
+実行したコマンドと実際の出力をそのまま残す。</p>
+<h4 id="タスク4ステップ5-wcd_settings-を無効化して-01-cart-displayspects-を落とす">タスク4ステップ5: <code>wcd_settings</code> を無効化して <code>01-cart-display.spec.ts</code> を落とす<a class="anchor" href="#タスク4ステップ5-wcd_settings-を無効化して-01-cart-displayspects-を落とす">#</a></h4>
+<p>計画書どおりにまず以下を実行した。</p>
+<pre><code class="language-bash">docker compose -f docker/docker-compose.yml run --rm -T wpcli wp --path=/var/www/html \
+  option update wcd_settings '[]' --format=json
+cd e2e &amp;&amp; npx playwright test tests/01-cart-display.spec.ts
+</code></pre>
+<p>結果は <strong>3件とも PASS</strong>した。計画書が想定する「割引行が出なくなり FAIL する」にはならず、
+一見すると空振りを起こしているように見えた。原因を調べたところ、<code>01-cart-display.spec.ts</code>
+自身の <code>test.beforeAll</code>（<code>e2e/tests/01-cart-display.spec.ts:15-18</code>）が</p>
+<pre><code class="language-typescript">test.beforeAll(async ({ browser }) =&gt; {
+  resetToKnownState()
+  page = await browser.newPage()
+})
+</code></pre>
+<p>という形で <code>resetToKnownState()</code> を呼んでおり、これがテスト本体の実行前に
+<code>wcd_settings</code> を既知の2段ルールへ<strong>上書きして戻してしまう</strong>ため、外部から
+<code>wp option update</code> で壊した値はテストが実際に検証を始める時点ではすでに元に戻っていた
+（<code>option get wcd_settings</code> で確認すると2段ルールのままだった）。</p>
+<p>これは実装計画が書かれた時点（タスク4ステップ3で <code>beforeAll</code> に <code>resetToKnownState()</code> を
+入れる設計にした）と、タスク4ステップ5が想定する「外部から option を壊せばテスト実行中も
+壊れたままのはず」という前提が、計画内部で矛盾していたことを意味する。calling
+<code>resetToKnownState()</code> in <code>beforeAll</code> は「他 spec の状態を持ち越さない」という別の目的で
+必要な設計であり、削除すべきものではない。そこで、この意図的な失敗確認の<strong>間だけ</strong>
+<code>beforeAll</code> 内の <code>resetToKnownState()</code> 呼び出しを一時的にコメントアウトし
+（<code>e2e/tests/01-cart-display.spec.ts</code> を一時改変、コミットしない）、その状態で
+<code>wcd_settings</code> を <code>[]</code> にしてから再実行した。</p>
+<pre><code class="language-bash">docker compose -f docker/docker-compose.yml run --rm -T wpcli wp --path=/var/www/html \
+  option update wcd_settings '[]' --format=json
+cd e2e &amp;&amp; npx playwright test tests/01-cart-display.spec.ts
+</code></pre>
+<p>結果:</p>
+<pre><code>✓  1 しきい値未満では割引行が出ない (886ms)
+✘  2 1段目に到達すると -500 と割引後合計が出る (729ms)
+   Error: expect(received).toBe(expected)
+   Expected: 500
+   Received: null
+-  3 2段目に到達すると -2000 に切り替わり、累積しない（did not run）
+1 failed, 1 did not run, 1 passed
+</code></pre>
+<p>1件目（しきい値未満）は割引ルールの有無にかかわらずそもそも割引が出ない条件のため
+PASS のままなのが正しい。2件目（1段目）は割引額 <code>500</code> を期待して <code>null</code>
+（割引行そのものが存在しない）を受け取り FAIL、3件目は <code>test.describe.configure({ mode: 'serial' })</code> により直前のテストが失敗した時点で以降が実行されない（<code>did not run</code>）。
+計画書は「1段目・2段目のテストが FAIL する」と書いていたが、serial モードの仕様上
+2件目は明示的な FAIL、3件目は「未実行」という形で現れる。いずれにせよ、割引が機能しない
+状態でテストがそのまま PASS してしまう空振りは起きないことを確認できた。</p>
+<p>確認後、<code>git checkout e2e/tests/01-cart-display.spec.ts</code> で一時改変を取り消し、
+<code>./e2e/bin/env-reset.sh</code> で <code>wcd_settings</code> を既知の状態に戻した上で再実行し、
+3件とも PASS することを確認した。</p>
+<h4 id="タスク7ステップ3-差し戻しロジックを単純加算に書き換えて-02-checkout-consistencyspects-を落とす">タスク7ステップ3: 差し戻しロジックを単純加算に書き換えて <code>02-checkout-consistency.spec.ts</code> を落とす<a class="anchor" href="#タスク7ステップ3-差し戻しロジックを単純加算に書き換えて-02-checkout-consistencyspects-を落とす">#</a></h4>
+<p><code>includes/class-wcd-integration.php</code> の <code>filter_order_recalculation()</code> を実際に読み、
+二重計上を防ぐ差し戻しロジックが（計画書が想定していた144-150行付近から行番号が
+ずれておらず）現物でも144-150行の <code>else</code> 節にあることを確認した。</p>
+<pre><code class="language-php">} else {
+    // この経路の $discount には前回本プラグインが注入した割引額が
+    // 含まれている. その既知の値だけを差し戻し、他の割引成分を復元する.
+    $previous_injected = self::get_injected_discount( $order_id );
+    $other_components  = $discount + $previous_injected;
+    $new_discount      = $other_components - $amount;
+}
+</code></pre>
+<p>これを一時的に単純加算へ書き換えた（コミットしない）。</p>
+<pre><code class="language-php">} else {
+    // TEMP(意図的な失敗確認用、コミットしない): 前回注入額を差し戻さない
+    // 単純加算に書き換え、二重計上を検出できることを確認する。
+    $new_discount = $discount - $amount;
+}
+</code></pre>
+<p>実行:</p>
+<pre><code class="language-bash">cd e2e &amp;&amp; npx playwright test tests/02-checkout-consistency.spec.ts
+</code></pre>
+<p>結果:</p>
+<pre><code>✓  1 カート画面と購入確認画面で割引額が一致し、購入を完了できる (5.1s)
+✓  2 確定後の受注データにも同じ割引額が記録されている (1.7s)
+✘  3 再計算を3回繰り返しても割引額が変動しない（二重計上の非再発） (1.1s)
+   Error: 1 回目の再計算後
+   expect(received).toBe(expected)
+   Expected: 500
+   Received: 1000
+1 failed, 2 passed
+</code></pre>
+<p>計画書が想定した通り、1・2件目（カート・確認画面・受注データの3箇所整合）は割引の
+初回注入ロジック自体には手を入れていないため PASS のまま、3件目（再計算のべき等性）は
+1回目の再計算後に <code>500</code> ではなく <code>1000</code> を検出して期待通り FAIL した。これは
+「前回注入額 -500 を差し戻さずに新しい割引額 -500 をさらに加算した結果、
+-500 → -1,000 と二重計上される」という、このプラグイン最大のリスク領域（Welcart の
+受注編集フォームが送信する <code>$discount</code> に前回保存値が含まれるという非直感的な仕様に
+起因する不具合。詳細は本レポート「AIの出力が誤っていた箇所」3・4）を、E2Eが正しく
+検知できることを直接示す結果である。</p>
+<p>確認後、<code>git checkout includes/class-wcd-integration.php</code> で一時改変を取り消し、
+<code>git status --short</code> で差分が無いことを確認した。</p>
+<h4 id="元に戻した後の全件-pass-確認">元に戻した後の全件 PASS 確認<a class="anchor" href="#元に戻した後の全件-pass-確認">#</a></h4>
+<p>上記2件の意図的な失敗確認では、<code>02-checkout-consistency.spec.ts</code> の1件目が実際に
+購入を完走させるため、対象商品（Practice Pad Set・Compact Tuner Pedal）の在庫を
+消費する。今回の一連の再実施（<code>01-cart-display.spec.ts</code> を複数回、
+<code>02-checkout-consistency.spec.ts</code> を複数回実行）の結果、この2商品の在庫
+（<code>wp_usces_skus.stocknum</code>）が実際に0まで減少し、<code>docs/ai-report.md</code>
+「うまくいかなかったこと・時間を要したこと（E2E、追記）」に既に記録されている
+「商品在庫の枯渇による他specへの副作用」を、今回の検証作業自体で再現する形になった。
+<code>env-reset.sh</code> は在庫を戻さない設計（意図的）のため、<code>wp eval</code> 経由で <code>$wpdb-&gt;update()</code>
+により該当2商品の <code>stocknum</code> を種データの値（<code>docker/seed-items.php:345</code>）と同じ <code>10</code>
+に戻してから、<code>./e2e/bin/env-reset.sh</code> で <code>wcd_settings</code> / <code>wcd_exclusions</code> を既知の
+状態に戻し、<code>01-cart-display.spec.ts</code> と <code>02-checkout-consistency.spec.ts</code> を続けて
+実行した。</p>
+<pre><code class="language-bash">cd e2e &amp;&amp; npx playwright test tests/01-cart-display.spec.ts tests/02-checkout-consistency.spec.ts
+</code></pre>
+<p>結果:</p>
+<pre><code>✓  1 しきい値未満では割引行が出ない (792ms)
+✓  2 1段目に到達すると -500 と割引後合計が出る (718ms)
+✓  3 2段目に到達すると -2000 に切り替わり、累積しない (699ms)
+✓  4 カート画面と購入確認画面で割引額が一致し、購入を完了できる (5.0s)
+✓  5 確定後の受注データにも同じ割引額が記録されている (1.4s)
+✓  6 再計算を3回繰り返しても割引額が変動しない（二重計上の非再発） (1.9s)
+6 passed (15.8s)
+</code></pre>
+<p>6件全て PASS した。<code>git status --short</code> は空であり、<code>includes/class-wcd-integration.php</code>・
+<code>e2e/tests/01-cart-display.spec.ts</code> のいずれも一時改変が残っていないことを確認済み。</p>
+<p><strong>この検証の意味</strong>: 二重計上バグ（-500 → -1,000 → -1,500 と積み上がる）は、本レポート
+「AIの出力が誤っていた箇所」3で記録した通り、実装フェーズでは検出できず実機検証で
+初めて発見された、このプラグインで最も再発しやすいリスク領域である。その修正の正しさを
+守る <code>02-checkout-consistency.spec.ts</code> の3件目が、差し戻しロジックを欠いた実装に対して
+確実に FAIL することを今回実機で確認できたことは、「テストが存在すること」ではなく
+「テストが本当にこのリスクを検知できること」を担保する。また <code>01-cart-display.spec.ts</code>
+側で発覚した <code>beforeAll</code> の <code>resetToKnownState()</code> が意図的な失敗確認を無効化するという
+計画内部の矛盾は、計画書のコード例をそのまま実行するだけでは検証が成立しない場合が
+あることを示す実例であり、E2E実装全体を通じた教訓（次項）に連なるものとして記録する。</p>
+<h3 id="e2e実装全体を通じた教訓">E2E実装全体を通じた教訓<a class="anchor" href="#e2e実装全体を通じた教訓">#</a></h3>
+<p>12〜14・18〜20は、いずれも「計画書のコード例（AIの出力）を実行する前に、まず実ページ・
+実DBで実測する」という、実装計画自身が定めていた方針（タスク5「購入フォームの入力欄名を
+実ページから抽出する」等）に沿って実装した結果、コードに混入する前に発見できた誤りである。
+一方15は、その方針があっても実装時の一度の実行で初めて顕在化し、実際に発生させてから
+気づいて修正した不具合である。両者を区別して記録することで、「実測プロセスを踏んでも
+なお発生しうる誤り」が存在することを正直に示す。</p>
+<h3 id="22-隔離環境での冪等性検証によって発見した商品urlの投稿id直値依存2周目修正">22. 隔離環境での冪等性検証によって発見した商品URLの投稿ID直値依存（2周目修正）<a class="anchor" href="#22-隔離環境での冪等性検証によって発見した商品urlの投稿id直値依存2周目修正">#</a></h3>
+<p>項目21が「意図的に壊して落とす」検証であるのに対し、本項目は<strong>タスク10「全体通しの確認」
+そのものをやり直す過程</strong>で発見した別種の欠陥であり、項目14（1周目時点で発見した「トップ
+ページの商品一覧に全商品が出ない」問題）とも異なる、2周目で新たに見つかった事実である。</p>
+<p><strong>発見の経緯</strong>: evaluator の REJECT（<code>entrypoint-and-idempotent-provisioning</code> 軸）を受け、
+タスク10ステップ1が本来求める「<code>composer e2e:down</code> でまっさらな状態から再構築する」検証の
+代替として、既存の共有検証環境（<code>docker-wordpress-1</code> 等、<code>docs/verification.md</code> 記録済みの
+再現不能な受注データを保持している）を一切破壊せずに済む<strong>隔離 Docker Compose 環境</strong>
+（<code>COMPOSE_PROJECT_NAME=wcd-e2e-freshcheck WP_PORT=8099</code>）を新規構築した。この隔離環境に
+対してまっさらな状態から <code>e2e/bin/env-up.sh</code> を実行し、環境構築ロジック自体は健全である
+ことを実機で確認できた。続けて <code>WP_PORT=8099 npx playwright test</code> を実行したところ、
+管理画面 UI のみで完結する <code>04-admin-settings.spec.ts</code>（2件）は PASS した一方、商品を
+カートに入れる <code>01-cart-display.spec.ts</code> / <code>02-checkout-consistency.spec.ts</code> /
+<code>03-category-exclusion.spec.ts</code>（合計9件）はいずれも <code>addToCart()</code> の1回目の呼び出しで
+失敗した。</p>
+<p><strong>原因</strong>: <code>e2e/helpers/shop.ts</code> の <code>ITEMS</code> が商品ページ URL を <code>/?p=181</code> のような
+<strong>投稿IDの直値</strong>で保持しており、この値は共有環境（<code>docker-wordpress-1</code>）で実測した値に
+過ぎなかった。隔離環境で同じ商品名の実際の投稿IDを確認すると、Practice Pad Set=78 /
+Compact Tuner Pedal=40 / OD-1 Overdrive=36 / Maple Snare 14inch=46 であり、共有環境の値
+（181 / 171 / 167 / 177）とはまったく一致しなかった。WordPress の投稿IDはインストール
+ごとの投稿作成順・件数に依存する自動採番であり、真にまっさらな環境では共有環境と同じ値に
+なる保証がない。</p>
+<p><strong>なぜAIの誤りと言えるか</strong>: 実装計画・過去の実装（項目14で商品ページURLを投稿ID直値で
+<code>ITEMS</code> に持たせる設計にした時点を含む）は、いずれも「今稼働中の共有環境で動けばよい」
+という暗黙の前提でこの値をハードコードしており、設計書・<code>docs/design-notes.md</code> が明記する
+「まっさらな状態からでも1コマンドで通る」という中核目標を、実際には満たしていなかった。
+この矛盾はコードレビューだけでは気づけず、隔離環境での実機検証によって初めて発見できた。</p>
+<p><strong>修正内容</strong>: <code>e2e/helpers/wpcli.ts</code> に <code>getItemPostId(name)</code> / <code>getItemUrl(name)</code> を
+追加し、商品名から投稿IDを動的に解決する方式に変更した。<code>wp post list --title=... --post_mime_type=item</code> は項目12と同じ理由（Welcart側の <code>pre_get_posts</code> フックが介在する
+とみられ、<code>WP_Query</code> 経由のフィルタとして機能しない。原因の完全な特定までは行っていない）
+で使えないため、<code>getCategoryId()</code>
+（<code>wp term list</code>）と同じパターンは踏襲できず、<code>$wpdb-&gt;prepare()</code> を使う <code>wp eval</code> 経由で
+<code>{$wpdb-&gt;posts}</code> を直接問い合わせる方式にした。<code>e2e/helpers/shop.ts</code> の <code>ITEMS</code> からは
+<code>url</code>（投稿ID直値）フィールドを削除し、<code>addToCart()</code> 内で商品名ごとに <code>itemUrlCache</code>
+（プロセス内 <code>Map</code>）にキャッシュしつつ都度 <code>getItemUrl()</code> で解決する設計に変更した
+（呼び出しのたびに WP-CLI を叩く速度低下を避けるため）。</p>
+<p><strong>修正後の確認結果</strong>: 共有検証環境（<code>docker-wordpress-1</code>）に対して <code>cd e2e &amp;&amp; npx playwright test</code> を実行し、既存4 spec・11件が全件 PASS することを確認した（動的解決に
+変えても共有環境の商品名・投稿IDの対応関係自体は変わらないため、以前と同じ結果になる）。
+隔離環境は検証終了後 <code>docker compose -p wcd-e2e-freshcheck -f docker/docker-compose.yml down -v</code> で完全に破棄し、共有環境の受注件数・コンテナ作成時刻に影響がないことも確認した。
+詳細な実測値・コマンド出力は <code>docs/design-notes.md</code>（460〜538行付近）に記録している。</p>
+<h2 id="うまくいかなかったこと時間を要したことe2e追記">うまくいかなかったこと・時間を要したこと（E2E、追記）<a class="anchor" href="#うまくいかなかったこと時間を要したことe2e追記">#</a></h2>
+<h3 id="商品在庫の枯渇による他specへの副作用設計上の盲点">商品在庫の枯渇による他specへの副作用（設計上の盲点）<a class="anchor" href="#商品在庫の枯渇による他specへの副作用設計上の盲点">#</a></h3>
+<p><code>02-checkout-consistency.spec.ts</code> は3箇所整合を検証するために実際に購入を完走させる。
+そのため実行のたびに対象商品（Practice Pad Set・Compact Tuner Pedal）の在庫
+（<code>wp_usces_skus.stocknum</code>）を1個ずつ消費する。<code>stocknum</code> が0になると <code>stock</code> フラグが
+売り切れ扱いになり、カート追加ボタンはDOM上に存在し続けるが押しても何も起きなくなる
+（エラーメッセージも出ない）。これにより、<code>01-cart-display.spec.ts</code> と
+<code>02-checkout-consistency.spec.ts</code> を続けて何度も実行すると、原因の見えないflakyな
+失敗が発生した。</p>
+<p><strong>原因調査に時間を要した理由</strong>: エラーが一切出ないため、最初はセレクタの問題か
+ネットワークタイミングの問題を疑い、<code>waitForLoadState</code> の待ち方を見直すなど的外れな
+修正を試みた。最終的にDBで <code>wp_usces_skus.stocknum</code> を直接確認し、対象商品の在庫が
+0になっていることに気づいて原因が判明した。</p>
+<p><strong>未解決である理由</strong>: <code>env-reset.sh</code> は <code>wcd_settings</code> / <code>wcd_exclusions</code> の2option
+のみをリセットする設計であり（<code>docs/design-notes.md</code>「<code>env-reset.sh</code> が受注を削除
+しない理由」参照）、在庫を毎回補充する処理は意図的に含めていない。在庫補充を
+<code>env-reset.sh</code> に追加することも検討したが、「テストが作成した受注を触らない」という
+既存の設計方針（受注データを直接いじる操作は事故のリスクが高い）と一貫させるため、
+今回は在庫を戻す処理を実装せず、この限界を正直に記録するに留めた。回避策として
+README・design-notes.md に明記した通り、在庫切れが疑われる場合は <code>composer e2e:down</code>
+で検証環境を作り直すことを運用上の対処とする。</p>
+
+      </article>
+    </main>
+  </div>
+  <dialog id="lightbox" class="lightbox-dialog">
+    <img id="lightbox-img" src="" alt="">
+    <button type="button" class="lightbox-close" aria-label="閉じる">×</button>
+  </dialog>
+  <script src="assets/doc.js" defer></script>
+</body>
+</html>

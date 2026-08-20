@@ -312,3 +312,4 @@ welcart-cart-discount/          ← このディレクトリがそのままプ�
 - 設計メモ（フック選定理由・検討したが不採用の候補）: `docs/design-notes.md`
 - AI活用レポート（使用ツール・誤りの発見と修正・うまくいかなかったこと）: `docs/ai-report.md`
 - 動作確認の記録（スクリーンショット）: `docs/verification.md`
+- 上記4文書の閲覧用HTML版（正本はMarkdown版、これは読みやすく整形した副本）: `docs/html/index.html`

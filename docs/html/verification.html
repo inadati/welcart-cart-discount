@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>動作確認の記録 | Welcart Cart Discount 提出物</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="doc-page">
+  <header class="topbar">
+    <button class="nav-toggle" aria-expanded="false" aria-controls="sidebar">目次</button>
+  </header>
+  <div class="layout">
+    <nav id="sidebar" class="sidebar">
+      <div class="sidebar-docs">
+        <a href="index.html" class="back-link">← 目次に戻る</a>
+        <a href="readme.html">README</a>
+        <a href="design-notes.html">設計メモ</a>
+        <a href="ai-report.html">AI活用レポート</a>
+        <a href="verification.html" aria-current="page">動作確認の記録</a>
+      </div>
+      <nav class="toc">
+        <a href="#1-管理画面での複数段ルール設定" class="toc-link toc-h2">1. 管理画面での複数段ルール設定</a>
+        <a href="#2-しきい値未満のカート画面割引なし" class="toc-link toc-h2">2. しきい値未満のカート画面（割引なし）</a>
+        <a href="#3-しきい値到達後のカート画面割引行の表示" class="toc-link toc-h2">3. しきい値到達後のカート画面（割引行の表示）</a>
+        <a href="#4-購入確認画面の割引行と支払総額" class="toc-link toc-h2">4. 購入確認画面の割引行と支払総額</a>
+        <a href="#5-受注データ一覧受注詳細の割引額" class="toc-link toc-h2">5. 受注データ一覧・受注詳細の割引額</a>
+        <a href="#6-上位段に到達したときの割引額の切り替わり" class="toc-link toc-h2">6. 上位段に到達したときの割引額の切り替わり</a>
+        <a href="#補足-受注編集時の再計算確認実装計画タスク15ステップ8" class="toc-link toc-h3">補足: 受注編集時の再計算確認（実装計画タスク15ステップ8）</a>
+        <a href="#7-composer-lint-と-composer-test-の実行結果" class="toc-link toc-h2">7. composer lint と composer test の実行結果</a>
+        <a href="#8-受注再計算の精緻化2周目修正の再検証" class="toc-link toc-h2">8. 受注再計算の精緻化（2周目修正）の再検証</a>
+        <a href="#8-1-メタ未記録の既存受注に対する1回目の再計算既知の限界の再現" class="toc-link toc-h3">8-1. メタ未記録の既存受注に対する1回目の再計算（既知の限界の再現）</a>
+        <a href="#8-2-メタが正しく記録された状態からの再計算正常系の確認" class="toc-link toc-h3">8-2. メタが正しく記録された状態からの再計算（正常系の確認）</a>
+        <a href="#8-3-カート画面フロントのリグレッション確認null-安全性修正" class="toc-link toc-h3">8-3. カート画面（フロント）のリグレッション確認（null 安全性修正）</a>
+        <a href="#8-4-composer-lint--composer-test-の再実行" class="toc-link toc-h3">8-4. composer lint / composer test の再実行</a>
+        <a href="#9-新規受注フロント購入フローでの受注メタ自動記録の実機確認3周目修正" class="toc-link toc-h2">9. 新規受注（フロント購入フロー）での受注メタ自動記録の実機確認（3周目修正）</a>
+        <a href="#10-受注再計算の既知の限界の追加検証3周目修正-2500-の実機確認と-ui-経由の手動修正" class="toc-link toc-h2">10. 受注再計算の既知の限界の追加検証（3周目修正・-¥2,500 の実機確認と UI 経由の手動修正）</a>
+        <a href="#10-1-composer-lint--composer-test-の再実行3周目修正後" class="toc-link toc-h3">10-1. composer lint / composer test の再実行（3周目修正後）</a>
+        <a href="#検証環境の最新化にあたって発見修正した問題プラグインのバグではない" class="toc-link toc-h2">検証環境の最新化にあたって発見・修正した問題（プラグインのバグではない）</a>
+        <a href="#検証用データ" class="toc-link toc-h2">検証用データ</a>
+        <a href="#11-除外カテゴリの動作確認部分除外3箇所整合" class="toc-link toc-h2">11. 除外カテゴリの動作確認（部分除外・3箇所整合）</a>
+        <a href="#12-除外ランク会員の動作確認" class="toc-link toc-h2">12. 除外ランク（会員）の動作確認</a>
+        <a href="#13-除外ランクゲストの動作確認" class="toc-link toc-h2">13. 除外ランク（ゲスト）の動作確認</a>
+        <a href="#14-受注編集の再計算での持ち主ランク解決の確認" class="toc-link toc-h2">14. 受注編集の再計算での持ち主ランク解決の確認</a>
+        <a href="#15-対照実験-除外設定を外した状態での同一受注の再計算設計意図の裏付け" class="toc-link toc-h2">15. 対照実験: 除外設定を外した状態での同一受注の再計算（設計意図の裏付け）</a>
+        <a href="#16-後方互換の確認" class="toc-link toc-h2">16. 後方互換の確認</a>
+        <a href="#17-除外設定有効時の受注再計算べき等性の確認2周目修正-tryfinally-保護後の実機再検証" class="toc-link toc-h2">17. 除外設定有効時の受注再計算べき等性の確認（2周目修正 try/finally 保護後の実機再検証）</a>
+        <a href="#17-1-除外ランク設定の再有効化" class="toc-link toc-h3">17-1. 除外ランク設定の再有効化</a>
+        <a href="#17-2-除外対象でないゲスト受注での複数回クリック二重計上の非再発" class="toc-link toc-h3">17-2. 除外対象でないゲスト受注での複数回クリック（二重計上の非再発）</a>
+        <a href="#17-3-除外対象ランクの受注での複数回クリック0のまま安定することの確認" class="toc-link toc-h3">17-3. 除外対象ランクの受注での複数回クリック（0のまま安定することの確認）</a>
+        <a href="#18-composer-test--composer-lint-の最終確認" class="toc-link toc-h2">18. composer test / composer lint の最終確認</a>
+        <a href="#19-e2eplaywrightの意図的な失敗確認空振り検知" class="toc-link toc-h2">19. E2E（Playwright）の意図的な失敗確認（空振り検知）</a>
+        <a href="#20-提出直前の最終確認e2e-全件単体テストコーディング規約" class="toc-link toc-h2">20. 提出直前の最終確認（E2E 全件・単体テスト・コーディング規約）</a>
+        <a href="#その他の記録参考" class="toc-link toc-h2">その他の記録（参考）</a>
+      </nav>
+    </nav>
+    <main>
+      <article class="doc">
+<h1>動作確認の記録</h1>
+<p>設計書「動作確認の記録」節に記載した7項目の順に、実際に取得したスクリーンショットと
+説明を並べる。すべて Docker（WordPress 6.6.2 / PHP 8.2.25 / Welcart 2.12.1.2608181）
+上で実機操作して取得したものであり、未実施の項目はない。</p>
+<p>検証手順（テスト商品・割引ルールの内容）は <code>README.md</code> の
+「動作確認環境」節と合わせて参照すること。</p>
+<ul>
+<li>テスト商品A: <code>検証用商品40000円</code>（TEST-40000／SKU-001／単価 ¥40,000）</li>
+<li>テスト商品B: <code>検証用商品3000円</code>（TEST-3000／SKU-002／単価 ¥3,000、
+しきい値をまたぐ数量調整のために追加登録）</li>
+<li>割引ルール: 10,000円以上で500円引き／30,000円以上で2,000円引き</li>
+</ul>
+<hr>
+<h2 id="1-管理画面での複数段ルール設定">1. 管理画面での複数段ルール設定<a class="anchor" href="#1-管理画面での複数段ルール設定">#</a></h2>
+<p><code>Welcart Shop &gt; 自動割引設定</code> で「10,000円以上で500円引き」「30,000円以上で
+2,000円引き」の2段を入力し、保存した直後の状態。</p>
+<ul>
+<li>入力直後: <figure class="fig"><a href="../screenshots/01-settings.png" class="lightbox-trigger" data-img="../screenshots/01-settings.png"><img src="../screenshots/01-settings.png" loading="lazy" alt="docs/screenshots/01-settings.png"></a><figcaption>docs/screenshots/01-settings.png</figcaption></figure></li>
+<li>保存後（<code>wcd_saved=1</code> のクエリで成功通知が表示された状態）:
+<figure class="fig"><a href="../screenshots/01-settings-saved.png" class="lightbox-trigger" data-img="../screenshots/01-settings-saved.png"><img src="../screenshots/01-settings-saved.png" loading="lazy" alt="docs/screenshots/01-settings-saved.png"></a><figcaption>docs/screenshots/01-settings-saved.png</figcaption></figure></li>
+</ul>
+<p>保存内容は DB（<code>wp_options.wcd_settings</code>）でも
+<code>a:2:{i:0;a:2:{s:9:&quot;threshold&quot;;i:10000;s:6:&quot;amount&quot;;i:500;}i:1;a:2:{s:9:&quot;threshold&quot;;i:30000;s:6:&quot;amount&quot;;i:2000;}}</code>
+として正しくシリアライズされていることを確認済み。</p>
+<hr>
+<h2 id="2-しきい値未満のカート画面割引なし">2. しきい値未満のカート画面（割引なし）<a class="anchor" href="#2-しきい値未満のカート画面割引なし">#</a></h2>
+<p>テスト商品B（単価¥3,000）を数量3（合計¥9,000）でカートに入れた状態。
+しきい値（¥10,000）未満のため割引行が表示されない。</p>
+<figure class="fig"><a href="../screenshots/02-below-threshold.png" class="lightbox-trigger" data-img="../screenshots/02-below-threshold.png"><img src="../screenshots/02-below-threshold.png" loading="lazy" alt="docs/screenshots/02-below-threshold.png"></a><figcaption>docs/screenshots/02-below-threshold.png</figcaption></figure>
+<hr>
+<h2 id="3-しきい値到達後のカート画面割引行の表示">3. しきい値到達後のカート画面（割引行の表示）<a class="anchor" href="#3-しきい値到達後のカート画面割引行の表示">#</a></h2>
+<p>同商品の数量を4（合計¥12,000）に更新すると、「自動割引 -¥500」
+「割引後合計 ¥11,500」の行がカート表に追加される。</p>
+<figure class="fig"><a href="../screenshots/03-threshold-reached.png" class="lightbox-trigger" data-img="../screenshots/03-threshold-reached.png"><img src="../screenshots/03-threshold-reached.png" loading="lazy" alt="docs/screenshots/03-threshold-reached.png"></a><figcaption>docs/screenshots/03-threshold-reached.png</figcaption></figure>
+<hr>
+<h2 id="4-購入確認画面の割引行と支払総額">4. 購入確認画面の割引行と支払総額<a class="anchor" href="#4-購入確認画面の割引行と支払総額">#</a></h2>
+<p>数量を10（合計¥30,000）に更新後、購入手続きを進めた確認画面。
+「Campaign discount $-2,000.00」「Total Amount $28,000.00」と表示され、
+カート画面の割引後合計（後述の項目6と同じ状態）と一致することを確認した。</p>
+<figure class="fig"><a href="../screenshots/05-confirmation.png" class="lightbox-trigger" data-img="../screenshots/05-confirmation.png"><img src="../screenshots/05-confirmation.png" loading="lazy" alt="docs/screenshots/05-confirmation.png"></a><figcaption>docs/screenshots/05-confirmation.png</figcaption></figure>
+<hr>
+<h2 id="5-受注データ一覧受注詳細の割引額">5. 受注データ一覧・受注詳細の割引額<a class="anchor" href="#5-受注データ一覧受注詳細の割引額">#</a></h2>
+<p>上記の内容で注文を確定した後の受注一覧・受注詳細画面。</p>
+<ul>
+<li>受注一覧（Total Amount $28,000.00 と表示）:
+<figure class="fig"><a href="../screenshots/06-order-list.png" class="lightbox-trigger" data-img="../screenshots/06-order-list.png"><img src="../screenshots/06-order-list.png" loading="lazy" alt="docs/screenshots/06-order-list.png"></a><figcaption>docs/screenshots/06-order-list.png</figcaption></figure></li>
+<li>受注詳細（Campaign discount -2,000.00、Total Amount 28,000 と表示）:
+<figure class="fig"><a href="../screenshots/07-order-detail.png" class="lightbox-trigger" data-img="../screenshots/07-order-detail.png"><img src="../screenshots/07-order-detail.png" loading="lazy" alt="docs/screenshots/07-order-detail.png"></a><figcaption>docs/screenshots/07-order-detail.png</figcaption></figure></li>
+</ul>
+<p>DB（<code>wp_usces_order</code>）でも <code>order_item_total_price = 30000.00</code> /
+<code>order_discount = -2000.00</code> として保存されていることを直接クエリして確認した。
+これにより、カート画面・確認画面・受注データの3箇所で割引額（¥2,000）が
+完全に一致することを実機で確認できた。</p>
+<hr>
+<h2 id="6-上位段に到達したときの割引額の切り替わり">6. 上位段に到達したときの割引額の切り替わり<a class="anchor" href="#6-上位段に到達したときの割引額の切り替わり">#</a></h2>
+<p>カート画面で数量を4（¥12,000、¥500引き）→10（¥30,000）に更新した際、
+割引額が ¥500 と ¥2,000 の合算（¥2,500）にならず、<strong>上位段の ¥2,000 のみ</strong>に
+切り替わることを確認した。</p>
+<figure class="fig"><a href="../screenshots/04-top-tier-switch.png" class="lightbox-trigger" data-img="../screenshots/04-top-tier-switch.png"><img src="../screenshots/04-top-tier-switch.png" loading="lazy" alt="docs/screenshots/04-top-tier-switch.png"></a><figcaption>docs/screenshots/04-top-tier-switch.png</figcaption></figure>
+<h3 id="補足-受注編集時の再計算確認実装計画タスク15ステップ8">補足: 受注編集時の再計算確認（実装計画タスク15ステップ8）<a class="anchor" href="#補足-受注編集時の再計算確認実装計画タスク15ステップ8">#</a></h3>
+<p>上記で確定した受注（数量10・¥30,000・割引¥2,000）を管理画面の受注編集画面で
+数量4（¥12,000）に変更し「Recalculation」ボタンを押した際の再計算結果。</p>
+<figure class="fig"><a href="../screenshots/08-order-recalculation.png" class="lightbox-trigger" data-img="../screenshots/08-order-recalculation.png"><img src="../screenshots/08-order-recalculation.png" loading="lazy" alt="docs/screenshots/08-order-recalculation.png"></a><figcaption>docs/screenshots/08-order-recalculation.png</figcaption></figure>
+<p>この検証で「Campaign discount」が -¥2,500（¥12,000の正しい段は本来 -¥500）と
+なる不具合を発見した。原因は <code>usces_filter_order_discount_recalculation</code> の
+<code>$discount</code> 引数の扱いにあり、<code>includes/class-wcd-integration.php</code> を修正して
+再検証し、正しく -¥500・合計¥11,500 と表示されること、「Recalculation」を
+複数回押しても値が変わらない（べき等）こと、「change decision」で保存後に
+DB（<code>order_item_total_price=12000.00</code> / <code>order_discount=-500.00</code>）へ正しく
+反映されることを確認した。発見の経緯と修正内容は <code>docs/ai-report.md</code> と
+<code>docs/design-notes.md</code> に記録している。</p>
+<hr>
+<h2 id="7-composer-lint-と-composer-test-の実行結果">7. <code>composer lint</code> と <code>composer test</code> の実行結果<a class="anchor" href="#7-composer-lint-と-composer-test-の実行結果">#</a></h2>
+<p>上記の不具合修正を終えた<strong>この時点での</strong>再実行結果。以降の周回で回帰テストを追加した
+ため、テスト件数はここから増えている。<strong>最新の値は「20. 提出直前の最終確認」を参照</strong>。</p>
+<ul>
+<li>lint: <details class="log"><summary>docs/screenshots/10-composer-lint.txt</summary><pre>....... 7 / 7 (100%)
+
+
+Time: 301ms; Memory: 14MB
+
+</pre></details>（違反0件）</li>
+<li>test: <details class="log"><summary>docs/screenshots/11-composer-test.txt</summary><pre>PHPUnit 9.6.36 by Sebastian Bergmann and contributors.
+
+...............                                                   15 / 15 (100%)
+
+Time: 00:00.009, Memory: 4.00 MB
+
+OK (15 tests, 17 assertions)
+</pre></details>（15 tests, 17 assertions, OK）</li>
+</ul>
+<hr>
+<h2 id="8-受注再計算の精緻化2周目修正の再検証">8. 受注再計算の精緻化（2周目修正）の再検証<a class="anchor" href="#8-受注再計算の精緻化2周目修正の再検証">#</a></h2>
+<p>evaluator の REJECT を受けた2周目修正（<code>fix: カート表フッター挿入時に $usces-&gt;cart の null安全性を確保</code> / <code>feat: 受注再計算で自プラグイン注入額のみを精緻に差し戻すよう改善</code>）
+について、既存の Docker 環境（コンテナは起動済みだったためそのまま使用）と Playwright で
+実機再検証を行った。テスト方法は、上記1〜7で確定した受注（ID 1000）を SQL で意図的に
+既知の状態に戻しながら再計算を行うというものである。フルの購入フロー（カート30,000円→
+受注確定）から毎回やり直さなかった理由は <code>docs/ai-report.md</code>「AIの出力が誤っていた箇所」5
+に記録した通り、既存受注を使う方が検証したいシナリオ（本修正より前に作成された受注の
+挙動）をより正確に再現できるためである。</p>
+<h3 id="8-1-メタ未記録の既存受注に対する1回目の再計算既知の限界の再現">8-1. メタ未記録の既存受注に対する1回目の再計算（既知の限界の再現）<a class="anchor" href="#8-1-メタ未記録の既存受注に対する1回目の再計算既知の限界の再現">#</a></h3>
+<p>修正前のコードで作成された受注（ID 1000、<code>wcd_injected_discount</code> メタ未記録、
+数量4・¥12,000・正しい割引額-¥500）に対し、数量を変更せず「Recalculation」を
+押したところ、表示が <strong>-¥1,000</strong> になった（期待値は-¥500のまま変わらないはず）。
+<code>docs/design-notes.md</code>「受注再計算の既知の限界」に記録した通りの二重計上と同種の
+誤りが、修正後のコードでも「メタ未記録」という条件下で再現することを確認した。</p>
+<figure class="fig"><a href="../screenshots/12-recalc-known-limitation-first-time.png" class="lightbox-trigger" data-img="../screenshots/12-recalc-known-limitation-first-time.png"><img src="../screenshots/12-recalc-known-limitation-first-time.png" loading="lazy" alt="docs/screenshots/12-recalc-known-limitation-first-time.png"></a><figcaption>docs/screenshots/12-recalc-known-limitation-first-time.png</figcaption></figure>
+<p>DB を直接確認し、この時点で <code>wp_usces_order_meta</code> に <code>wcd_injected_discount = 500</code>
+（＝現在のカート状態に対する正しい割引額）が新たに記録されたことも確認した
+（<code>remember_injected_discount()</code> は常に正しい <code>$amount</code> を記録するため、
+記録される値自体は正しい。誤っているのは表示された <code>$discount</code> の値である）。</p>
+<h3 id="8-2-メタが正しく記録された状態からの再計算正常系の確認">8-2. メタが正しく記録された状態からの再計算（正常系の確認）<a class="anchor" href="#8-2-メタが正しく記録された状態からの再計算正常系の確認">#</a></h3>
+<p>DB（<code>wp_usces_order.order_discount</code> / <code>wp_usces_order_meta.wcd_injected_discount</code> /
+<code>wp_usces_ordercart.quantity</code>）を SQL で意図的に「数量4・¥12,000・discount=-500・
+メタ=500」という整合の取れた状態に戻し、ブラウザをリロードして再検証した。</p>
+<ul>
+<li>数量を10（¥30,000）に変更し「Recalculation」を押すと、正しく <strong>-¥2,000</strong> と
+表示された。</li>
+<li>続けてもう一度「Recalculation」を押しても <strong>-¥2,000</strong> のまま変化しなかった
+（べき等性を確認）。</li>
+<li>数量を4（¥12,000）に戻して再計算すると、正しく <strong>-¥500</strong> に戻った。</li>
+</ul>
+<figure class="fig"><a href="../screenshots/13-recalc-clean-post-fix-2000.png" class="lightbox-trigger" data-img="../screenshots/13-recalc-clean-post-fix-2000.png"><img src="../screenshots/13-recalc-clean-post-fix-2000.png" loading="lazy" alt="docs/screenshots/13-recalc-clean-post-fix-2000.png"></a><figcaption>docs/screenshots/13-recalc-clean-post-fix-2000.png</figcaption></figure>
+<p>この結果、メタが正しく追跡されている限り、精緻化後のロジックは意図通りに動作する
+ことを実機で確認した。8-1 で確認した限界は、あくまで「メタが一度も記録されていない
+受注」に固有のものである。</p>
+<h3 id="8-3-カート画面フロントのリグレッション確認null-安全性修正">8-3. カート画面（フロント）のリグレッション確認（null 安全性修正）<a class="anchor" href="#8-3-カート画面フロントのリグレッション確認null-安全性修正">#</a></h3>
+<p><code>filter_cart_table_footer()</code> に追加された <code>$usces-&gt;cart</code> の null ガードが通常の
+カート表示を壊していないことを確認するため、テスト商品（TEST-3000）を数量4で
+カートに追加し、カート画面を表示した。「自動割引 -¥500」の行が正しく表示され、
+リグレッションがないことを確認した。</p>
+<figure class="fig"><a href="../screenshots/14-cart-regression-after-null-safety-fix.png" class="lightbox-trigger" data-img="../screenshots/14-cart-regression-after-null-safety-fix.png"><img src="../screenshots/14-cart-regression-after-null-safety-fix.png" loading="lazy" alt="docs/screenshots/14-cart-regression-after-null-safety-fix.png"></a><figcaption>docs/screenshots/14-cart-regression-after-null-safety-fix.png</figcaption></figure>
+<p>なお、<code>$usces-&gt;cart</code> が実際に null になる状況（このガードが本来守ろうとしている
+経路）そのものは、通常のブラウザ操作では再現できなかった。これはコードレビューで
+対処した防御的分岐であり、この経路自体を実機で発火させることはできていない
+（<code>docs/ai-report.md</code>「うまくいかなかったこと」に同旨を記録）。</p>
+<h3 id="8-4-composer-lint--composer-test-の再実行">8-4. <code>composer lint</code> / <code>composer test</code> の再実行<a class="anchor" href="#8-4-composer-lint--composer-test-の再実行">#</a></h3>
+<p>ローカル環境に PHP が見つからなかったため、Docker コンテナ内（PHP 8.2.25、
+<code>docker exec docker-wordpress-1 ...</code>）で bind mount 済みの <code>vendor/bin/phpunit</code> /
+<code>vendor/bin/phpcs</code> を直接実行し、2周目修正後のコードで次を確認した。</p>
+<ul>
+<li><code>vendor/bin/phpunit --bootstrap tests/bootstrap.php tests/unit</code>: 15 tests,
+17 assertions, OK</li>
+<li><code>vendor/bin/phpcs --standard=phpcs.xml.dist</code>: 7 / 7 完了、違反0件</li>
+</ul>
+<h2 id="9-新規受注フロント購入フローでの受注メタ自動記録の実機確認3周目修正">9. 新規受注（フロント購入フロー）での受注メタ自動記録の実機確認（3周目修正）<a class="anchor" href="#9-新規受注フロント購入フローでの受注メタ自動記録の実機確認3周目修正">#</a></h2>
+<p>evaluator の REJECT（<code>order-meta-hook-coverage</code> 軸）を受け、上記「8」節までの再検証が
+既存受注（ID 1000）を SQL で意図的に状態操作したものに留まり、
+<code>usces_action_reg_orderdata</code> フック自体が実際のフロント購入フローを通じて発火することを
+確認していなかった点を補った。</p>
+<p><strong>手順</strong>: 既存の Docker 環境・Playwright で管理画面にログインし（パスワードは
+<code>wp_set_password()</code> で再設定）、<code>Welcart Shop &gt; 自動割引設定</code> の割引ルール
+（10,000円以上-500円／30,000円以上-2,000円）が保持されていることを確認した上で、
+フロント（<code>http://localhost:8080</code>）でテスト商品（TEST-40000／¥40,000、
+セッションカートに残っていた TEST-3000×4／¥12,000 と合わせて合計¥52,000）を
+カートに入れ、非会員として購入手続きを最後まで進めて新しい受注を確定した。</p>
+<ul>
+<li>しきい値未満のカート画面（割引行）:
+<figure class="fig"><a href="../screenshots/15-settings-confirmed-before-new-order-flow.png" class="lightbox-trigger" data-img="../screenshots/15-settings-confirmed-before-new-order-flow.png"><img src="../screenshots/15-settings-confirmed-before-new-order-flow.png" loading="lazy" alt="docs/screenshots/15-settings-confirmed-before-new-order-flow.png"></a><figcaption>docs/screenshots/15-settings-confirmed-before-new-order-flow.png</figcaption></figure></li>
+<li>カート画面（自動割引 -¥2,000、合計¥52,000）:
+<figure class="fig"><a href="../screenshots/16-new-order-flow-cart.png" class="lightbox-trigger" data-img="../screenshots/16-new-order-flow-cart.png"><img src="../screenshots/16-new-order-flow-cart.png" loading="lazy" alt="docs/screenshots/16-new-order-flow-cart.png"></a><figcaption>docs/screenshots/16-new-order-flow-cart.png</figcaption></figure></li>
+<li>購入確認画面（Campaign discount $-2,000.00、Total Amount $50,000.00）:
+<figure class="fig"><a href="../screenshots/17-new-order-flow-confirmation.png" class="lightbox-trigger" data-img="../screenshots/17-new-order-flow-confirmation.png"><img src="../screenshots/17-new-order-flow-confirmation.png" loading="lazy" alt="docs/screenshots/17-new-order-flow-confirmation.png"></a><figcaption>docs/screenshots/17-new-order-flow-confirmation.png</figcaption></figure></li>
+</ul>
+<p>購入を確定すると新しい受注 ID 1001 が発行された。DB を直接クエリして確認したところ、</p>
+<ul>
+<li><code>wp_usces_order</code>（ID=1001）: <code>order_item_total_price = 52000.00</code>,
+<code>order_discount = -2000.00</code></li>
+<li><code>wp_usces_order_meta</code>（order_id=1001）: <code>wcd_injected_discount = 2000</code></li>
+</ul>
+<p>であり、<strong>フロントの購入フローを通じて <code>usces_action_reg_orderdata</code> が実際に発火し、
+<code>WCD_Integration::record_injected_discount_on_order_registration()</code> が
+<code>$args['order_id']</code> と <code>$args['cart']</code> を正しく受け取って、本プラグインが注入した
+割引額（¥2,000）を <code>wp_usces_order_meta.wcd_injected_discount</code> へ自動的に正しく
+記録すること</strong>を実機で確認した。管理画面の受注詳細画面でも Campaign discount が
+<code>-2000.00</code> と表示されることを確認した。</p>
+<figure class="fig"><a href="../screenshots/18-new-order-1001-detail.png" class="lightbox-trigger" data-img="../screenshots/18-new-order-1001-detail.png"><img src="../screenshots/18-new-order-1001-detail.png" loading="lazy" alt="docs/screenshots/18-new-order-1001-detail.png"></a><figcaption>docs/screenshots/18-new-order-1001-detail.png</figcaption></figure>
+<p>続けて、この新規受注（ID 1001）を管理画面の受注編集画面で開き、TEST-40000 の数量を
+<code>0</code> に変更して「Recalculation」を押したところ、正しい段（合計¥12,000 → -¥500）に
+切り替わった。もう一度「Recalculation」を押しても -¥500 のまま変化しない（べき等）
+ことを確認し、<code>wp_usces_order_meta.wcd_injected_discount</code> も <code>500</code> に更新されている
+ことを確認した（このタイミングでは受注本体の DB 値はまだ更新前の
+<code>order_item_total_price = 52000.00</code> / <code>order_discount = -2000.00</code> のままであり、
+「Recalculation」は画面上のプレビュー計算のみで、受注本体の保存は行っていないことも
+併せて確認した）。</p>
+<figure class="fig"><a href="../screenshots/19-new-order-1001-recalc-500.png" class="lightbox-trigger" data-img="../screenshots/19-new-order-1001-recalc-500.png"><img src="../screenshots/19-new-order-1001-recalc-500.png" loading="lazy" alt="docs/screenshots/19-new-order-1001-recalc-500.png"></a><figcaption>docs/screenshots/19-new-order-1001-recalc-500.png</figcaption></figure>
+<p>さらに「change decision」で保存し、DB（<code>wp_usces_order.order_item_total_price = 12000.00</code>,
+<code>order_discount = -500.00</code>）へ正しく反映されることを確認した。</p>
+<figure class="fig"><a href="../screenshots/20-new-order-1001-saved-500.png" class="lightbox-trigger" data-img="../screenshots/20-new-order-1001-saved-500.png"><img src="../screenshots/20-new-order-1001-saved-500.png" loading="lazy" alt="docs/screenshots/20-new-order-1001-saved-500.png"></a><figcaption>docs/screenshots/20-new-order-1001-saved-500.png</figcaption></figure>
+<h2 id="10-受注再計算の既知の限界の追加検証3周目修正-2500-の実機確認と-ui-経由の手動修正">10. 受注再計算の既知の限界の追加検証（3周目修正・-¥2,500 の実機確認と UI 経由の手動修正）<a class="anchor" href="#10-受注再計算の既知の限界の追加検証3周目修正-2500-の実機確認と-ui-経由の手動修正">#</a></h2>
+<p>evaluator の REJECT（<code>known-limitation-precision</code> 軸）を受け、<code>docs/design-notes.md</code>
+「受注再計算の既知の限界」節が「実機で確認した」と記載していた -¥2,500 という数値と、
+「Campaign discount 欄を UI で手動編集して保存する」という回避策について、実際には
+上記8節では検証されていなかった点（8-1 と 8-2 が連続した操作ではなく、8-2 は SQL で
+改めてクリーンな状態に戻してから行われていたこと、回避策自体は SQL による DB 直接
+書き換えでしか検証されていなかったこと）を補った。</p>
+<p><strong>手順1（8-1 の再現）</strong>: 既存の受注（ID 1000）を SQL で「メタ未記録・数量4・
+<code>order_item_total_price=12000.00</code>・<code>order_discount=-500.00</code>」という状態に戻した。
+受注編集画面で数量を変更せずに「Recalculation」を押したところ、8-1 節と同じく
+表示が -¥500 から <strong>-¥1,000</strong> に変化した。</p>
+<figure class="fig"><a href="../screenshots/21-order1000-recalc1-minus1000.png" class="lightbox-trigger" data-img="../screenshots/21-order1000-recalc1-minus1000.png"><img src="../screenshots/21-order1000-recalc1-minus1000.png" loading="lazy" alt="docs/screenshots/21-order1000-recalc1-minus1000.png"></a><figcaption>docs/screenshots/21-order1000-recalc1-minus1000.png</figcaption></figure>
+<p><strong>手順2（8-1 からの連続シナリオ・未検証だった続きの操作）</strong>: 上記の -¥1,000 の状態から
+<strong>SQL でリセットせずそのまま</strong>、同じ受注編集画面で数量を10（¥30,000）に変更し、
+もう一度「Recalculation」を押した。実際に表示された値は <strong>-¥2,500</strong> であり、
+<code>docs/design-notes.md</code> の数式（telescoping 展開: <code>discount_n = -(amount_before_fix) - amount_n</code>、<code>amount_before_fix = 500</code> が毎回加算され続けるため
+<code>-500 - 2000 = -2500</code>）による推定値と正確に一致することを実機で確認した。</p>
+<figure class="fig"><a href="../screenshots/22-order1000-recalc2-minus2500-confirmed.png" class="lightbox-trigger" data-img="../screenshots/22-order1000-recalc2-minus2500-confirmed.png"><img src="../screenshots/22-order1000-recalc2-minus2500-confirmed.png" loading="lazy" alt="docs/screenshots/22-order1000-recalc2-minus2500-confirmed.png"></a><figcaption>docs/screenshots/22-order1000-recalc2-minus2500-confirmed.png</figcaption></figure>
+<p><strong>手順3（回避策の実機確認・UI 経由の手動修正）</strong>: 上記の誤った状態（表示 -¥2,500）から、
+実際に管理画面の「Campaign discount」欄（<code>#order_discount</code>）へ直接 <code>-2000</code> を入力し
+（SQL ではなく UI 操作）、「change decision」ボタンで保存した。</p>
+<figure class="fig"><a href="../screenshots/23-order1000-manual-ui-fix-before-save.png" class="lightbox-trigger" data-img="../screenshots/23-order1000-manual-ui-fix-before-save.png"><img src="../screenshots/23-order1000-manual-ui-fix-before-save.png" loading="lazy" alt="docs/screenshots/23-order1000-manual-ui-fix-before-save.png"></a><figcaption>docs/screenshots/23-order1000-manual-ui-fix-before-save.png</figcaption></figure>
+<p>保存後、DB を直接クエリして <code>wp_usces_order</code>（ID=1000）が
+<code>order_item_total_price = 30000.00</code> / <code>order_discount = -2000.00</code> として正しく
+反映されていることを確認した。これにより「Campaign discount 欄を UI で手動編集して
+保存する」という回避策が、SQL によるシミュレーションではなく実際の管理画面操作を
+通じて機能することを実機で確認できた。</p>
+<p>さらに、この保存後にページを再読み込みしてもう一度「Recalculation」を押したところ、
+表示は -¥2,000 のまま変化しなかった（メタと discount フィールドの整合が回復し、
+以降の再計算が健全な状態に戻ったことを確認）。</p>
+<figure class="fig"><a href="../screenshots/24-order1000-post-ui-fix-healthy-recalc.png" class="lightbox-trigger" data-img="../screenshots/24-order1000-post-ui-fix-healthy-recalc.png"><img src="../screenshots/24-order1000-post-ui-fix-healthy-recalc.png" loading="lazy" alt="docs/screenshots/24-order1000-post-ui-fix-healthy-recalc.png"></a><figcaption>docs/screenshots/24-order1000-post-ui-fix-healthy-recalc.png</figcaption></figure>
+<h3 id="10-1-composer-lint--composer-test-の再実行3周目修正後">10-1. <code>composer lint</code> / <code>composer test</code> の再実行（3周目修正後）<a class="anchor" href="#10-1-composer-lint--composer-test-の再実行3周目修正後">#</a></h3>
+<p>ローカル環境の PHP（<code>/opt/homebrew/opt/php@8.2/bin/php</code>）で <code>/tmp/composer.phar test</code>
+/ <code>/tmp/composer.phar lint</code> を実行し、次を確認した（本タスクはドキュメント・検証が
+中心でコード変更を行っていないため、テスト内容自体は test-quality 軸の修正
+（空文字・非数値の除去テスト追加）を反映した最新のテストスイートである）。</p>
+<ul>
+<li><code>phpunit --bootstrap tests/bootstrap.php tests/unit</code>: 16 tests, 18 assertions, OK</li>
+<li><code>phpcs --standard=phpcs.xml.dist</code>: 7 / 7 完了、違反0件</li>
+</ul>
+<hr>
+<h1>第二段階: 除外条件設定（会員ランク・商品カテゴリ）の実機検証</h1>
+<p>設計書 <code>.nipper/chot/specs/2026-08-20-welcart-cart-discount-exclusions-design.md</code>
+「テスト方針／実機検証」の6項目を、実装計画タスク13の手順に沿って実際に操作して確認した。
+環境は第一段階と同一（Docker: WordPress 6.6.2 / PHP 8.2.25 / Welcart 2.12.1.2608181）。
+検証用商品は既存の25点（<code>docker/seed-items.php</code>）とテスト商品2点（TEST-40000 / TEST-3000）
+をそのまま使用し、新規投入は行っていない。</p>
+<h2 id="検証環境の最新化にあたって発見修正した問題プラグインのバグではない">検証環境の最新化にあたって発見・修正した問題（プラグインのバグではない）<a class="anchor" href="#検証環境の最新化にあたって発見修正した問題プラグインのバグではない">#</a></h2>
+<p><code>docker compose up -d --build</code> → <code>./docker/setup.sh</code> を実行したところ、テーマ有効化の手順
+（<code>wp theme activate welcart-shop-theme</code>）が「スタイルシートが見つかりません。」で失敗した。
+調査したところ、名前付きボリューム <code>docker_wp_data</code> 内の
+<code>wp-content/themes/welcart-shop-theme</code> ディレクトリが空（ディレクトリ自体は存在するが
+中身のファイルが無い）になっていた。原因は、過去に <code>docker/compose.dev.yml</code>
+（テーマ編集用の bind mount 追加設定）を使った検証セッションが残っており、
+そのときの <code>docker-wpcli-1</code> コンテナ（39時間起動したまま）だけがホスト側の
+<code>docker/theme/welcart-shop-theme</code> を bind mount していて、本来の名前付きボリューム側には
+中身が反映されていなかったと推測される。<strong>これはプラグイン本体のコードとは無関係な、
+検証環境（Docker ボリューム）側の状態異常</strong>であり、<code>docker/Dockerfile</code> や
+<code>docker/setup.sh</code> 自体の不具合ではない。</p>
+<p>一時的な <code>alpine</code> コンテナで名前付きボリュームにホスト側のテーマファイルを
+コピーして復旧し（<code>docker run --rm -v docker_wp_data:/target -v $(pwd)/docker/theme/welcart-shop-theme:/source:ro alpine sh -c &quot;cp -a /source/. /target/wp-content/themes/welcart-shop-theme/&quot;</code>）、
+その後 <code>./docker/setup.sh</code> を再実行して正常終了することを確認した。既存の商品25点・
+割引ルール2段（10,000円以上-500円／30,000円以上-2,000円）はいずれも維持されていた。</p>
+<h2 id="検証用データ">検証用データ<a class="anchor" href="#検証用データ">#</a></h2>
+<ul>
+<li>商品カテゴリ: <code>docker/seed-items.php</code> が投入する25商品は5カテゴリ
+（ギター/ベース/アンプ/エフェクター/ドラム、各5点）に分類済み</li>
+<li>会員ランク（<code>usces_customer_status</code>）: 通常会員(0) / 優良会員(1) / VIP会員(2) / 不良会員(99)</li>
+<li>除外条件設定画面から追加された擬似ランク: 未ログイン（非会員）</li>
+</ul>
+<h2 id="11-除外カテゴリの動作確認部分除外3箇所整合">11. 除外カテゴリの動作確認（部分除外・3箇所整合）<a class="anchor" href="#11-除外カテゴリの動作確認部分除外3箇所整合">#</a></h2>
+<p><code>Welcart Shop &gt; 自動割引設定</code> の除外条件セクションで、商品カテゴリ「エフェクター」に
+チェックを入れて保存した。</p>
+<figure class="fig"><a href="../screenshots/25-exclusion-category-settings.png" class="lightbox-trigger" data-img="../screenshots/25-exclusion-category-settings.png"><img src="../screenshots/25-exclusion-category-settings.png" loading="lazy" alt="docs/screenshots/25-exclusion-category-settings.png"></a><figcaption>docs/screenshots/25-exclusion-category-settings.png</figcaption></figure>
+<p>保存後、DB（<code>wp_options.wcd_exclusions</code>）が
+<code>a:2:{s:5:&quot;ranks&quot;;a:0:{}s:10:&quot;categories&quot;;a:1:{i:0;i:9;}}</code>
+（<code>9</code> はエフェクターの term_id）となっていることを直接クエリして確認した。</p>
+<p>非除外カテゴリの商品2点（Practice Pad Set ¥7,500・ドラム／Solid State Practice 10W
+¥9,800・アンプ、合計¥17,300）と、除外カテゴリの商品（Multi Effects Processor
+¥32,000・エフェクター）をゲスト（非会員）としてカートに入れたところ、
+カート表は「商品合計 ¥49,300」「自動割引 -¥500」「割引後合計 ¥48,800」と表示された。
+除外カテゴリ商品分（¥32,000）を含めた生の商品合計は¥49,300（本来なら30,000円以上の
+段に該当し-¥2,000のはず）だが、しきい値判定に使われる小計は非除外分の¥17,300のみで
+あるため、10,000円以上30,000円未満の段（-¥500）が適用されていることを確認した。</p>
+<figure class="fig"><a href="../screenshots/26-exclusion-category-cart.png" class="lightbox-trigger" data-img="../screenshots/26-exclusion-category-cart.png"><img src="../screenshots/26-exclusion-category-cart.png" loading="lazy" alt="docs/screenshots/26-exclusion-category-cart.png"></a><figcaption>docs/screenshots/26-exclusion-category-cart.png</figcaption></figure>
+<p>続けて2点目の除外カテゴリ商品（Digital Delay DL-2 ¥15,200・エフェクター）を追加すると、
+商品合計は¥64,500に増えたが、自動割引は**-¥500のまま変化しなかった**。これにより、
+除外カテゴリ商品をいくら追加しても判定小計（¥17,300固定）に影響しないこと（部分除外の
+性質）を確認した。</p>
+<figure class="fig"><a href="../screenshots/27-exclusion-category-cart-add-more-excluded.png" class="lightbox-trigger" data-img="../screenshots/27-exclusion-category-cart-add-more-excluded.png"><img src="../screenshots/27-exclusion-category-cart-add-more-excluded.png" loading="lazy" alt="docs/screenshots/27-exclusion-category-cart-add-more-excluded.png"></a><figcaption>docs/screenshots/27-exclusion-category-cart-add-more-excluded.png</figcaption></figure>
+<p>購入手続きを進めた購入確認画面でも「商品合計 ¥64,500」「キャンペーン割引 ¥-500」
+「総合計金額 ¥64,000」とカート画面と完全に一致することを確認した。</p>
+<figure class="fig"><a href="../screenshots/28-exclusion-category-confirmation.png" class="lightbox-trigger" data-img="../screenshots/28-exclusion-category-confirmation.png"><img src="../screenshots/28-exclusion-category-confirmation.png" loading="lazy" alt="docs/screenshots/28-exclusion-category-confirmation.png"></a><figcaption>docs/screenshots/28-exclusion-category-confirmation.png</figcaption></figure>
+<p>ゲストとして注文を確定し、受注ID 1008 が発行された。管理画面の受注データ編集画面でも
+「商品合計 64,500」「キャンペーン割引 -500」「総合計金額 64,000」と表示され、
+DBを直接クエリしても <code>wp_usces_order</code>（ID=1008）が
+<code>order_item_total_price = 64500.00</code> / <code>order_discount = -500.00</code> として保存されている
+ことを確認した。これにより、除外カテゴリ設定時も<strong>カート画面・購入確認画面・受注データの
+3箇所で割引額（¥500）が完全に一致する</strong>ことを実機で確認した。</p>
+<figure class="fig"><a href="../screenshots/29-exclusion-category-order-detail.png" class="lightbox-trigger" data-img="../screenshots/29-exclusion-category-order-detail.png"><img src="../screenshots/29-exclusion-category-order-detail.png" loading="lazy" alt="docs/screenshots/29-exclusion-category-order-detail.png"></a><figcaption>docs/screenshots/29-exclusion-category-order-detail.png</figcaption></figure>
+<h2 id="12-除外ランク会員の動作確認">12. 除外ランク（会員）の動作確認<a class="anchor" href="#12-除外ランク会員の動作確認">#</a></h2>
+<p>除外条件設定で、商品カテゴリの「エフェクター」を外し、会員ランクの「不良会員」に
+チェックを入れて保存した（DB: <code>ranks</code> に <code>99</code> が追加されたことを確認）。</p>
+<figure class="fig"><a href="../screenshots/30-exclusion-rank-settings.png" class="lightbox-trigger" data-img="../screenshots/30-exclusion-rank-settings.png"><img src="../screenshots/30-exclusion-rank-settings.png" loading="lazy" alt="docs/screenshots/30-exclusion-rank-settings.png"></a><figcaption>docs/screenshots/30-exclusion-rank-settings.png</figcaption></figure>
+<p>検証用会員が存在しなかったため、<code>Welcart Management &gt; 新規会員登録</code>
+（管理画面のブラウザ操作）から検証用会員を作成した
+（メール <code>badmember@example.com</code>、ランク「不良会員」を選択）。作成後、DBで
+<code>wp_usces_member</code>（ID=1001）の <code>mem_status = 99</code> を確認した。</p>
+<figure class="fig"><a href="../screenshots/31-exclusion-rank-testmember-created.png" class="lightbox-trigger" data-img="../screenshots/31-exclusion-rank-testmember-created.png"><img src="../screenshots/31-exclusion-rank-testmember-created.png" loading="lazy" alt="docs/screenshots/31-exclusion-rank-testmember-created.png"></a><figcaption>docs/screenshots/31-exclusion-rank-testmember-created.png</figcaption></figure>
+<p>フロント（会員ログイン画面）からこの会員としてログインし、しきい値（30,000円）を
+大きく超える商品（Bass Combo 100W ¥62,000）をカートに入れたところ、カート表には
+「商品合計 ¥62,000」のみが表示され、<strong>自動割引の行自体が表示されなかった</strong>
+（除外対象ランクのため <code>wcd_available_rules</code> フィルタが空配列を返し、
+割引ルールが無効化されている）。</p>
+<figure class="fig"><a href="../screenshots/32-exclusion-rank-cart-no-discount.png" class="lightbox-trigger" data-img="../screenshots/32-exclusion-rank-cart-no-discount.png"><img src="../screenshots/32-exclusion-rank-cart-no-discount.png" loading="lazy" alt="docs/screenshots/32-exclusion-rank-cart-no-discount.png"></a><figcaption>docs/screenshots/32-exclusion-rank-cart-no-discount.png</figcaption></figure>
+<p>購入確認画面でも「商品合計 ¥62,000」「総合計金額 ¥62,000」のみでキャンペーン割引の
+行が無いことを確認し、そのまま注文を確定した（受注ID 1009）。DBを直接クエリし、
+<code>wp_usces_order</code>（ID=1009）が <code>order_item_total_price = 62000.00</code> /
+<code>order_discount = 0.00</code> / <code>mem_id = 1001</code> として保存されていること、会員ページの
+購入履歴にも「購入金額 ¥62,000」「値引き ¥0」と表示されることを確認した。</p>
+<figure class="fig"><a href="../screenshots/33-exclusion-rank-confirmation-no-discount.png" class="lightbox-trigger" data-img="../screenshots/33-exclusion-rank-confirmation-no-discount.png"><img src="../screenshots/33-exclusion-rank-confirmation-no-discount.png" loading="lazy" alt="docs/screenshots/33-exclusion-rank-confirmation-no-discount.png"></a><figcaption>docs/screenshots/33-exclusion-rank-confirmation-no-discount.png</figcaption></figure>
+<h2 id="13-除外ランクゲストの動作確認">13. 除外ランク（ゲスト）の動作確認<a class="anchor" href="#13-除外ランクゲストの動作確認">#</a></h2>
+<p>除外条件設定で「未ログイン（非会員）」に追加でチェックを入れて保存した
+（「不良会員」はステップ14で使うため残したまま。DB:
+<code>ranks: [&quot;guest&quot;, 99]</code>）。</p>
+<figure class="fig"><a href="../screenshots/34-exclusion-guest-settings.png" class="lightbox-trigger" data-img="../screenshots/34-exclusion-guest-settings.png"><img src="../screenshots/34-exclusion-guest-settings.png" loading="lazy" alt="docs/screenshots/34-exclusion-guest-settings.png"></a><figcaption>docs/screenshots/34-exclusion-guest-settings.png</figcaption></figure>
+<p>フロント側の会員セッションからログアウトし、未ログイン状態でしきい値を超える商品
+（Deep Black PB Bass ¥68,000）をカートに入れたところ、「商品合計 ¥68,000」のみが
+表示され、自動割引の行は表示されなかった。ゲスト除外の設定が正しく効いていることを
+確認した。</p>
+<figure class="fig"><a href="../screenshots/35-exclusion-guest-cart-no-discount.png" class="lightbox-trigger" data-img="../screenshots/35-exclusion-guest-cart-no-discount.png"><img src="../screenshots/35-exclusion-guest-cart-no-discount.png" loading="lazy" alt="docs/screenshots/35-exclusion-guest-cart-no-discount.png"></a><figcaption>docs/screenshots/35-exclusion-guest-cart-no-discount.png</figcaption></figure>
+<h2 id="14-受注編集の再計算での持ち主ランク解決の確認">14. 受注編集の再計算での持ち主ランク解決の確認<a class="anchor" href="#14-受注編集の再計算での持ち主ランク解決の確認">#</a></h2>
+<p>ステップ12で確定した受注（ID 1009、持ち主は不良会員の badmember@example.com、
+mem_id=1001）を、除外対象ではない管理者アカウント（<code>admin</code>、Welcart会員としては
+未登録＝このアカウント自身のセッションは非会員扱い）で管理画面の受注編集画面から開き、
+数量を1→2（¥62,000→¥124,000）に変更して「Recalculation」を押した。</p>
+<p>管理者自身のセッションは非会員（除外対象の「未ログイン」）であり、除外条件設定を
+そのままセッションから判定すればどのみち除外されてしまうため、この検証だけでは
+「持ち主のランクで判定されているか」「操作者のセッションで判定されているか」を
+区別できない。そこで、ステップ14実施時点の除外設定は「不良会員」と「未ログイン」の
+<strong>両方</strong>をチェックした状態にしてあり、次のステップ15で「不良会員」設定を外した状態の
+対照実験を行うことで、表示された割引額が本当に「受注の持ち主（不良会員）」の判定に
+由来するのか、それとも別の理由（バグ等）でたまたま割引が出ていないだけなのかを
+切り分けた。</p>
+<p>再計算の結果、「商品合計 124,000」「キャンペーン割引 0」「総合計金額 124,000」と
+表示され、金額(¥124,000)はしきい値(30,000円)を大きく超えているにもかかわらず
+割引が適用されないことを確認した。</p>
+<figure class="fig"><a href="../screenshots/36-exclusion-order-recalc-owner-rank.png" class="lightbox-trigger" data-img="../screenshots/36-exclusion-order-recalc-owner-rank.png"><img src="../screenshots/36-exclusion-order-recalc-owner-rank.png" loading="lazy" alt="docs/screenshots/36-exclusion-order-recalc-owner-rank.png"></a><figcaption>docs/screenshots/36-exclusion-order-recalc-owner-rank.png</figcaption></figure>
+<h2 id="15-対照実験-除外設定を外した状態での同一受注の再計算設計意図の裏付け">15. 対照実験: 除外設定を外した状態での同一受注の再計算（設計意図の裏付け）<a class="anchor" href="#15-対照実験-除外設定を外した状態での同一受注の再計算設計意図の裏付け">#</a></h2>
+<p>上記の結果が本当に「受注の持ち主（不良会員）」のランク判定によるものかを確認するため、
+除外条件設定から「不良会員」のチェックを外し（「未ログイン」は残したまま）保存した。
+ページを再読み込みすると数量は未保存のためDB上の値（1・¥62,000）に戻っていたが、
+そのまま数量を変更せず「Recalculation」を押したところ、今度は「キャンペーン割引 -2000」
+「総合計金額 60,000」と、正しく30,000円以上の段の割引が適用された。</p>
+<figure class="fig"><a href="../screenshots/37-exclusion-order-recalc-control-no-exclusion.png" class="lightbox-trigger" data-img="../screenshots/37-exclusion-order-recalc-control-no-exclusion.png"><img src="../screenshots/37-exclusion-order-recalc-control-no-exclusion.png" loading="lazy" alt="docs/screenshots/37-exclusion-order-recalc-control-no-exclusion.png"></a><figcaption>docs/screenshots/37-exclusion-order-recalc-control-no-exclusion.png</figcaption></figure>
+<p>この対照実験により、ステップ14で割引が出なかったのは操作者（管理者）のセッション状態や
+偶然の不具合によるものではなく、<strong>除外設定に「不良会員」が含まれているかどうかに正確に
+連動して</strong>、受注の持ち主（badmember、不良会員）のランクで判定が行われていることを
+実機で確認できた。設計書の「経路2: 受注編集画面の再計算」節が意図した、
+<code>WCD_Integration::filter_order_recalculation()</code> 実行中だけ対象受注IDを <code>WCD_Exclusion</code>
+へ通知し、セッションではなく受注の持ち主のランクを解決する実装が、意図どおりに
+機能していることの裏付けとなった。</p>
+<h2 id="16-後方互換の確認">16. 後方互換の確認<a class="anchor" href="#16-後方互換の確認">#</a></h2>
+<p>除外条件設定（会員ランク・商品カテゴリ）をすべて空にして保存した。DBで
+<code>wp_options.wcd_exclusions</code> が
+<code>a:2:{s:5:&quot;ranks&quot;;a:0:{}s:10:&quot;categories&quot;;a:0:{}}</code>（両方とも空配列）であることを
+確認した。</p>
+<figure class="fig"><a href="../screenshots/38-exclusion-empty-settings-backward-compat.png" class="lightbox-trigger" data-img="../screenshots/38-exclusion-empty-settings-backward-compat.png"><img src="../screenshots/38-exclusion-empty-settings-backward-compat.png" loading="lazy" alt="docs/screenshots/38-exclusion-empty-settings-backward-compat.png"></a><figcaption>docs/screenshots/38-exclusion-empty-settings-backward-compat.png</figcaption></figure>
+<p>第一段階の検証で使用したテスト商品（検証用商品3000円／TEST-3000／¥3,000）を数量4
+（合計¥12,000）でカートに入れたところ、「商品合計 ¥12,000」「自動割引 -¥500」
+「割引後合計 ¥11,500」と表示され、これは本ドキュメント冒頭「3. しきい値到達後の
+カート画面（割引行の表示）」に記録した第一段階の結果と<strong>完全に同一の数値</strong>であった。
+除外条件を導入する前（第一段階）と、除外条件をすべて空にした状態（第二段階）とで
+挙動に差が無いことを実機で確認した。</p>
+<figure class="fig"><a href="../screenshots/39-backward-compat-cart-matches-stage1.png" class="lightbox-trigger" data-img="../screenshots/39-backward-compat-cart-matches-stage1.png"><img src="../screenshots/39-backward-compat-cart-matches-stage1.png" loading="lazy" alt="docs/screenshots/39-backward-compat-cart-matches-stage1.png"></a><figcaption>docs/screenshots/39-backward-compat-cart-matches-stage1.png</figcaption></figure>
+<h2 id="17-除外設定有効時の受注再計算べき等性の確認2周目修正-tryfinally-保護後の実機再検証">17. 除外設定有効時の受注再計算べき等性の確認（2周目修正 try/finally 保護後の実機再検証）<a class="anchor" href="#17-除外設定有効時の受注再計算べき等性の確認2周目修正-tryfinally-保護後の実機再検証">#</a></h2>
+<p>evaluator の REJECT（<code>recalculation-injection-regression-safety</code> 軸）を受けた3周目の
+追加検証。14〜15節はいずれも除外設定が有効な状態で「Recalculation」ボタンを<strong>1回だけ</strong>
+クリックした結果しか記録しておらず、2周目修正（コミット <code>d66e4e9</code>）で
+<code>WCD_Integration::filter_order_recalculation()</code> の <code>calculate_amount()</code> 呼び出しに
+try/finally 保護を追加した後も、<code>get_injected_discount()</code> / <code>remember_injected_discount()</code>
+による二重計上防止ロジックが<strong>複数回</strong>の「Recalculation」クリックで安定することの
+実機証跡が欠けていた。第一段階の8-2節（同一受注への複数回クリックでべき等性を確認）に
+相当する検証を、除外設定が有効な状態で改めて行った。</p>
+<h3 id="17-1-除外ランク設定の再有効化">17-1. 除外ランク設定の再有効化<a class="anchor" href="#17-1-除外ランク設定の再有効化">#</a></h3>
+<p>管理画面の除外条件設定で「不良会員」（<code>mem_status=99</code>）に再度チェックを入れて保存した
+（DB: <code>wcd_exclusions</code> の <code>ranks</code> に <code>99</code>）。</p>
+<figure class="fig"><a href="../screenshots/40-recalc-idempotency-exclusion-settings.png" class="lightbox-trigger" data-img="../screenshots/40-recalc-idempotency-exclusion-settings.png"><img src="../screenshots/40-recalc-idempotency-exclusion-settings.png" loading="lazy" alt="docs/screenshots/40-recalc-idempotency-exclusion-settings.png"></a><figcaption>docs/screenshots/40-recalc-idempotency-exclusion-settings.png</figcaption></figure>
+<h3 id="17-2-除外対象でないゲスト受注での複数回クリック二重計上の非再発">17-2. 除外対象でないゲスト受注での複数回クリック（二重計上の非再発）<a class="anchor" href="#17-2-除外対象でないゲスト受注での複数回クリック二重計上の非再発">#</a></h3>
+<p>過去のテスト操作でメタと受注が不整合な状態になっていた既存受注（ID 1009 等）を
+SQL で操作し直すのではなく、混同を避けるため新規にクリーンな受注を確定した。
+Multi Effects Processor（¥32,000、エフェクター）をゲスト（非会員、除外対象外）として
+カートに入れ購入手続きを進め、カート画面・購入確認画面のいずれも「商品合計 ¥32,000」
+「自動割引 -¥2,000」「割引後合計/総合計金額 ¥30,000」と表示されることを確認した上で
+注文を確定し、受注ID <strong>1010</strong> を得た。DB を直接クエリし、
+<code>wp_usces_order</code>（ID=1010）が <code>order_item_total_price = 32000.00</code> /
+<code>order_discount = -2000.00</code>、<code>wp_usces_order_meta</code> の <code>wcd_injected_discount = 2000</code>
+であり、受注本体とメタが整合したクリーンな状態であることを確認した。</p>
+<p>この受注の管理画面編集画面を開き、数量を1→2（¥32,000→¥64,000、しきい値30,000円以上の
+段のため割引額は-¥2,000のまま変わらないはず）に変更し、「Recalculation」ボタンを
+<strong>3回連続でクリック</strong>した。</p>
+<ul>
+<li>1回目: キャンペーン割引 <strong>-2000</strong>、総合計金額 62,000（商品合計64,000-割引2,000）
+<figure class="fig"><a href="../screenshots/41-recalc-idempotency-guest-order1010-click1.png" class="lightbox-trigger" data-img="../screenshots/41-recalc-idempotency-guest-order1010-click1.png"><img src="../screenshots/41-recalc-idempotency-guest-order1010-click1.png" loading="lazy" alt="docs/screenshots/41-recalc-idempotency-guest-order1010-click1.png"></a><figcaption>docs/screenshots/41-recalc-idempotency-guest-order1010-click1.png</figcaption></figure></li>
+<li>2回目: キャンペーン割引 <strong>-2000</strong>（1回目から変化なし）
+<figure class="fig"><a href="../screenshots/42-recalc-idempotency-guest-order1010-click2.png" class="lightbox-trigger" data-img="../screenshots/42-recalc-idempotency-guest-order1010-click2.png"><img src="../screenshots/42-recalc-idempotency-guest-order1010-click2.png" loading="lazy" alt="docs/screenshots/42-recalc-idempotency-guest-order1010-click2.png"></a><figcaption>docs/screenshots/42-recalc-idempotency-guest-order1010-click2.png</figcaption></figure></li>
+<li>3回目: キャンペーン割引 <strong>-2000</strong>（変化なし）
+<figure class="fig"><a href="../screenshots/43-recalc-idempotency-guest-order1010-click3.png" class="lightbox-trigger" data-img="../screenshots/43-recalc-idempotency-guest-order1010-click3.png"><img src="../screenshots/43-recalc-idempotency-guest-order1010-click3.png" loading="lazy" alt="docs/screenshots/43-recalc-idempotency-guest-order1010-click3.png"></a><figcaption>docs/screenshots/43-recalc-idempotency-guest-order1010-click3.png</figcaption></figure></li>
+</ul>
+<p>3回連続でクリックしても割引額が最初の正しい値（-¥2,000）のまま安定し、二重計上
+（-¥2,500、-¥3,000 のような累積的な誤りへの発展）が発生しないことを実機で確認した。</p>
+<h3 id="17-3-除外対象ランクの受注での複数回クリック0のまま安定することの確認">17-3. 除外対象ランクの受注での複数回クリック（0のまま安定することの確認）<a class="anchor" href="#17-3-除外対象ランクの受注での複数回クリック0のまま安定することの確認">#</a></h3>
+<p>除外ランク（不良会員、<code>mem_status=99</code>）の会員として新規受注を作成する際、
+過去に使用した会員（ID 1001、<code>badmember@example.com</code>）は8-15節の一連の操作で
+受注メタが不整合な状態（<code>wcd_injected_discount=2000</code> だが該当受注の
+<code>order_discount=0.00</code> のまま未保存）になっていたため、混同を避けるため
+管理画面の「新規会員登録」から別の検証用会員（<code>badmember2@example.com</code>、
+ランク「不良会員」）を新規に作成した（DB: <code>wp_usces_member</code> ID=1002、
+<code>mem_status=99</code>）。</p>
+<p>この会員としてフロントからログインし、Multi Effects Processor（¥32,000）を
+購入したところ、除外ランクのため自動割引の行が表示されず「総合計金額 ¥32,000」の
+まま注文を確定し、受注ID <strong>1011</strong> を得た。DB で <code>wp_usces_order</code>（ID=1011）が
+<code>order_item_total_price = 32000.00</code> / <code>order_discount = 0.00</code> であることを確認した。</p>
+<p>この受注の管理画面編集画面を開き、数量を1→2（¥32,000→¥64,000）に変更し、
+「Recalculation」ボタンを<strong>3回連続でクリック</strong>した。</p>
+<ul>
+<li>1回目: キャンペーン割引 <strong>0</strong>、総合計金額 64,000（割引なし）
+<figure class="fig"><a href="../screenshots/44-recalc-idempotency-excluded-rank-order1011-click1.png" class="lightbox-trigger" data-img="../screenshots/44-recalc-idempotency-excluded-rank-order1011-click1.png"><img src="../screenshots/44-recalc-idempotency-excluded-rank-order1011-click1.png" loading="lazy" alt="docs/screenshots/44-recalc-idempotency-excluded-rank-order1011-click1.png"></a><figcaption>docs/screenshots/44-recalc-idempotency-excluded-rank-order1011-click1.png</figcaption></figure></li>
+<li>2回目: キャンペーン割引 <strong>0</strong>（変化なし）
+<figure class="fig"><a href="../screenshots/45-recalc-idempotency-excluded-rank-order1011-click2.png" class="lightbox-trigger" data-img="../screenshots/45-recalc-idempotency-excluded-rank-order1011-click2.png"><img src="../screenshots/45-recalc-idempotency-excluded-rank-order1011-click2.png" loading="lazy" alt="docs/screenshots/45-recalc-idempotency-excluded-rank-order1011-click2.png"></a><figcaption>docs/screenshots/45-recalc-idempotency-excluded-rank-order1011-click2.png</figcaption></figure></li>
+<li>3回目: キャンペーン割引 <strong>0</strong>（変化なし）
+<figure class="fig"><a href="../screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png" class="lightbox-trigger" data-img="../screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png"><img src="../screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png" loading="lazy" alt="docs/screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png"></a><figcaption>docs/screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png</figcaption></figure></li>
+</ul>
+<p>除外対象ランクの受注では、しきい値（30,000円）を大きく超える金額（¥64,000）に
+変更した後も、3回連続のクリックを通じて割引額が0のまま安定することを実機で確認した。</p>
+<p>以上17-2・17-3により、<code>WCD_Exclusion::begin_order_recalculation()</code> /
+<code>end_order_recalculation()</code> の追加で <code>calculate_amount()</code> の呼び出し経路に
+try/finally が新たに挟まった後も、<code>get_injected_discount()</code> /
+<code>remember_injected_discount()</code> による二重計上防止ロジックが、除外設定が有効な状態・
+除外対象ランクの受注・除外対象外の受注のいずれでも、複数回の「Recalculation」
+クリックに対して安定して機能することを確認した。検証後、除外条件設定は
+「不良会員」のチェックを外し、後方互換の基準状態（<code>wcd_exclusions</code> の <code>ranks</code> /
+<code>categories</code> とも空配列）に戻した。</p>
+<h2 id="18-composer-test--composer-lint-の最終確認">18. <code>composer test</code> / <code>composer lint</code> の最終確認<a class="anchor" href="#18-composer-test--composer-lint-の最終確認">#</a></h2>
+<p>上記すべての実機検証を終えた最終状態のコードに対し、Docker コンテナ内
+（<code>docker compose exec wordpress</code>、bind mount 済みの <code>vendor/bin/phpunit</code> /
+<code>vendor/bin/phpcs</code> を使用）で再実行した。</p>
+<ul>
+<li><code>vendor/bin/phpunit --bootstrap tests/bootstrap.php tests/unit</code>: <strong>46 tests, 53
+assertions, OK</strong></li>
+<li><code>vendor/bin/phpcs --standard=phpcs.xml.dist</code>: 11 / 11 完了、<strong>違反0件</strong></li>
+</ul>
+<p><strong>訂正</strong>: 本節はもともと「44 tests, 51 assertions」と記録していたが、その値を取得した
+コミット（<code>1258924</code>、2026-08-20 10:37:44）は2周目修正コミット <code>d66e4e9</code>（受注再計算の
+例外安全性のため try/finally 保護を追加）・<code>38a9ae6</code>（会員ランク0の境界値の回帰テストを
+2件追加）より前に作成されたものであり、現在のコードベースの実際の状態を反映していな
+かった。<code>38a9ae6</code> で追加された2件の回帰テストの分だけテスト件数・アサーション件数が
+増え、実際に今回 Docker コンテナ内で取得した最新の数値は46 tests, 53 assertionsである。</p>
+<p>以上により、設計書「テスト方針／実機検証」の6項目（除外カテゴリの3箇所整合・部分除外、
+除外ランク（会員）、除外ランク（ゲスト）、受注編集再計算での持ち主ランク解決、
+後方互換）をすべて実機で確認した。加えて、当初計画になかった対照実験（ステップ15）を
+追加で行い、「持ち主のランクで判定されている」という主張を裏付けとして補強した。さらに
+2周目修正で追加された try/finally 保護についても、複数回クリックによる二重計上の
+非再発を17節で実機確認した。</p>
+<h2 id="19-e2eplaywrightの意図的な失敗確認空振り検知">19. E2E（Playwright）の意図的な失敗確認（空振り検知）<a class="anchor" href="#19-e2eplaywrightの意図的な失敗確認空振り検知">#</a></h2>
+<p>実装計画（<code>.nipper/chot/plans/2026-08-20-e2e-tests.md</code>）タスク4ステップ5・タスク7
+ステップ3が要求する「意図的に条件を壊してテストが空振りしないことを確認する」検証を、
+稼働中の Docker 検証環境に対して実施した。<code>wcd_settings</code> を無効化した状態で
+<code>01-cart-display.spec.ts</code> を実行すると1段目のテストが <code>Expected: 500, Received: null</code>
+で FAIL し、<code>includes/class-wcd-integration.php</code> の差し戻しロジックを一時的に単純加算へ
+書き換えた状態で <code>02-checkout-consistency.spec.ts</code> を実行すると3件目（再計算のべき等性）
+が <code>Expected: 500, Received: 1000</code> で FAIL することを確認した。確認後はいずれも
+<code>git checkout</code> で元に戻し、<code>01-cart-display.spec.ts</code> と <code>02-checkout-consistency.spec.ts</code>
+の全6件が PASS することも再確認した。実行コマンド・実際の出力・検証中に判明した
+<code>beforeAll</code> の <code>resetToKnownState()</code> が空振り確認を無効化してしまう計画内部の矛盾
+（一時的に無効化して回避した）の詳細は <code>docs/ai-report.md</code>「21. 意図的な失敗確認（空振り
+検知）の実施記録（2周目修正）」を参照。</p>
+<h2 id="20-提出直前の最終確認e2e-全件単体テストコーディング規約">20. 提出直前の最終確認（E2E 全件・単体テスト・コーディング規約）<a class="anchor" href="#20-提出直前の最終確認e2e-全件単体テストコーディング規約">#</a></h2>
+<p>提出物が最新のコードに追随しているかを確かめるため、稼働中の Docker 検証環境に対して
+E2E スイート全件を通しで実行し、あわせて単体テストと WPCS チェックを再取得した。
+19節が記録しているのは「意図的に壊した場合に FAIL するか（空振り検知）」であり、
+全件を素の状態で通した記録は本節が初出である。</p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>対象</th>
+<th>コマンド</th>
+<th>結果</th>
+<th>ログ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>E2E（Playwright）</td>
+<td><code>composer e2e</code></td>
+<td><strong>11 passed (40.2s)</strong></td>
+<td><details class="log"><summary>47-e2e-full-run.txt</summary><pre> Container docker-db-1  Running
+==&gt; 検証環境は準備済み（商品 27 点）
+==&gt; 割引ルールを既知の状態にする（10,000円以上-500円 / 30,000円以上-2,000円）
+ Container docker-db-1  Running
+Success: Value passed for &#x27;wcd_settings&#x27; option is unchanged.
+==&gt; 除外設定を空にする
+ Container docker-db-1  Running
+Success: Value passed for &#x27;wcd_exclusions&#x27; option is unchanged.
+==&gt; リセット完了
+==&gt; Playwright を実行
+
+Running 11 tests using 1 worker
+
+(node:9063) Warning: The &#x27;NO_COLOR&#x27; env is ignored due to the &#x27;FORCE_COLOR&#x27; env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   1 tests/01-cart-display.spec.ts:24:7 › カート画面の割引表示 › しきい値未満では割引行が出ない (2.0s)
+ Container docker-db-1  Running
+  ✓   2 tests/01-cart-display.spec.ts:33:7 › カート画面の割引表示 › 1段目に到達すると -500 と割引後合計が出る (1.9s)
+ Container docker-db-1  Running
+  ✓   3 tests/01-cart-display.spec.ts:41:7 › カート画面の割引表示 › 2段目に到達すると -2000 に切り替わり、累積しない (1.9s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   4 tests/02-checkout-consistency.spec.ts:27:7 › 割引の3箇所整合と受注再計算のべき等性 › カート画面と購入確認画面で割引額が一致し、購入を完了できる (5.2s)
+  ✓   5 tests/02-checkout-consistency.spec.ts:44:7 › 割引の3箇所整合と受注再計算のべき等性 › 確定後の受注データにも同じ割引額が記録されている (1.4s)
+  ✓   6 tests/02-checkout-consistency.spec.ts:52:7 › 割引の3箇所整合と受注再計算のべき等性 › 再計算を3回繰り返しても割引額が変動しない（二重計上の非再発） (1.9s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   7 tests/03-category-exclusion.spec.ts:25:7 › 除外カテゴリによる部分除外 › 除外なしなら除外対象カテゴリの商品も合算されて割引される (3.8s)
+ Container docker-db-1  Running
+  ✓   8 tests/03-category-exclusion.spec.ts:36:7 › 除外カテゴリによる部分除外 › エフェクターを除外すると対象小計が下がり割引が消える (1.2s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   9 tests/03-category-exclusion.spec.ts:44:7 › 除外カテゴリによる部分除外 › 除外により適用される段が下がる (5.0s)
+  ✓  10 tests/04-admin-settings.spec.ts:24:7 › 管理画面からの設定保存 › 管理画面で保存したしきい値と割引額が再表示される (1.4s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓  11 tests/04-admin-settings.spec.ts:42:7 › 管理画面からの設定保存 › ログインしていないと設定画面を開けない (213ms)
+
+  11 passed (40.2s)
+</pre></details></td>
+</tr>
+<tr>
+<td>単体テスト</td>
+<td><code>composer test</code></td>
+<td><strong>46 tests, 53 assertions, OK</strong></td>
+<td><details class="log"><summary>48-composer-test-latest.txt</summary><pre>$ vendor/bin/phpunit --bootstrap tests/bootstrap.php tests/unit
+PHPUnit 9.6.36 by Sebastian Bergmann and contributors.
+
+..............................................                    46 / 46 (100%)
+
+Time: 00:00.013, Memory: 6.00 MB
+
+OK (46 tests, 53 assertions)
+</pre></details></td>
+</tr>
+<tr>
+<td>コーディング規約</td>
+<td><code>composer lint</code></td>
+<td>11 / 11 ファイル、<strong>違反0件</strong></td>
+<td><details class="log"><summary>49-composer-lint-latest.txt</summary><pre>$ vendor/bin/phpcs --standard=phpcs.xml.dist
+........... 11 / 11 (100%)
+
+
+Time: 1.01 secs; Memory: 16MB
+
+</pre></details></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>E2E の内訳は 01-cart-display（3件）・02-checkout-consistency（3件）・
+03-category-exclusion（3件）・04-admin-settings（2件）の計11件で、いずれも PASS した。
+単体テストの46 tests, 53 assertions は18節で記録した値と一致しており、その後
+プラグイン本体（<code>includes/</code>）に変更が入っていないことの裏付けにもなっている。</p>
+<p><strong>実行環境についての注記</strong>: 本節の単体テスト・WPCS はホスト側の PHP 8.2.29 で実行した
+（18節は Docker コンテナ内の PHP 8.2.25 で実行）。件数・アサーション数・違反件数は
+両者で一致した。</p>
+<h2 id="その他の記録参考">その他の記録（参考）<a class="anchor" href="#その他の記録参考">#</a></h2>
+<ul>
+<li>Welcart Shop・本プラグインの有効化直後のプラグイン一覧:
+<figure class="fig"><a href="../screenshots/00-plugins-active.png" class="lightbox-trigger" data-img="../screenshots/00-plugins-active.png"><img src="../screenshots/00-plugins-active.png" loading="lazy" alt="docs/screenshots/00-plugins-active.png"></a><figcaption>docs/screenshots/00-plugins-active.png</figcaption></figure></li>
+<li>Welcart 初期設定（支払方法「銀行振込」を追加した直後）:
+<figure class="fig"><a href="../screenshots/00-welcart-settings.png" class="lightbox-trigger" data-img="../screenshots/00-welcart-settings.png"><img src="../screenshots/00-welcart-settings.png" loading="lazy" alt="docs/screenshots/00-welcart-settings.png"></a><figcaption>docs/screenshots/00-welcart-settings.png</figcaption></figure></li>
+<li>テスト商品登録後の商品編集画面（SKU・在庫・配送方法設定済み）:
+<figure class="fig"><a href="../screenshots/00-item-registered.png" class="lightbox-trigger" data-img="../screenshots/00-item-registered.png"><img src="../screenshots/00-item-registered.png" loading="lazy" alt="docs/screenshots/00-item-registered.png"></a><figcaption>docs/screenshots/00-item-registered.png</figcaption></figure></li>
+</ul>
+
+      </article>
+    </main>
+  </div>
+  <dialog id="lightbox" class="lightbox-dialog">
+    <img id="lightbox-img" src="" alt="">
+    <button type="button" class="lightbox-close" aria-label="閉じる">×</button>
+  </dialog>
+  <script src="assets/doc.js" defer></script>
+</body>
+</html>

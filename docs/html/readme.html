@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>README | Welcart Cart Discount 提出物</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="doc-page">
+  <header class="topbar">
+    <button class="nav-toggle" aria-expanded="false" aria-controls="sidebar">目次</button>
+  </header>
+  <div class="layout">
+    <nav id="sidebar" class="sidebar">
+      <div class="sidebar-docs">
+        <a href="index.html" class="back-link">← 目次に戻る</a>
+        <a href="readme.html" aria-current="page">README</a>
+        <a href="design-notes.html">設計メモ</a>
+        <a href="ai-report.html">AI活用レポート</a>
+        <a href="verification.html">動作確認の記録</a>
+      </div>
+      <nav class="toc">
+        <a href="#動作確認環境" class="toc-link toc-h2">動作確認環境</a>
+        <a href="#cigithub-actions" class="toc-link toc-h3">CI（GitHub Actions）</a>
+        <a href="#必須要件チェックリスト" class="toc-link toc-h2">必須要件チェックリスト</a>
+        <a href="#加点要件チェックリスト" class="toc-link toc-h2">加点要件チェックリスト</a>
+        <a href="#制限事項" class="toc-link toc-h2">制限事項</a>
+        <a href="#しきい値割引額は整数のみ対応小数単位のある通貨は非対応" class="toc-link toc-h3">しきい値・割引額は整数のみ対応（小数単位のある通貨は非対応）</a>
+        <a href="#受注再計算の既知の限界メタ未記録の既存受注" class="toc-link toc-h3">受注再計算の既知の限界（メタ未記録の既存受注）</a>
+        <a href="#インストール" class="toc-link toc-h2">インストール</a>
+        <a href="#ローカル動作確認手順" class="toc-link toc-h2">ローカル動作確認手順</a>
+        <a href="#2コマンドが何をしているか" class="toc-link toc-h3">2コマンドが何をしているか</a>
+        <a href="#動作確認用テーマについて" class="toc-link toc-h3">動作確認用テーマについて</a>
+        <a href="#テーマを編集しながら確認する場合" class="toc-link toc-h3">テーマを編集しながら確認する場合</a>
+        <a href="#welcart-の既定値についての補足" class="toc-link toc-h3">Welcart の既定値についての補足</a>
+        <a href="#テストとコーディング規約チェック" class="toc-link toc-h3">テストとコーディング規約チェック</a>
+        <a href="#e2e-テストplaywright" class="toc-link toc-h3">E2E テスト（Playwright）</a>
+        <a href="#ディレクトリ構成" class="toc-link toc-h2">ディレクトリ構成</a>
+        <a href="#ドキュメント" class="toc-link toc-h2">ドキュメント</a>
+      </nav>
+    </nav>
+    <main>
+      <article class="doc">
+<h1>Welcart Cart Discount</h1>
+<p>Welcart のカート合計金額に応じて自動割引を適用する独立プラグイン。
+管理画面から「しきい値金額」と「割引額」の組を複数段設定でき、到達した最上位の
+1段のみがカート画面・購入確認画面・受注データの3箇所で整合して適用される。</p>
+<p>株式会社Welcart 採用選考の実技課題として作成した。設計の経緯は
+<code>docs/design-notes.md</code>、AI活用の詳細は <code>docs/ai-report.md</code>、動作確認の記録は
+<code>docs/verification.md</code> を参照。</p>
+<h2 id="動作確認環境">動作確認環境<a class="anchor" href="#動作確認環境">#</a></h2>
+<p>以下の構成で、カート画面・購入確認画面・受注データの割引額整合、および
+受注編集時の再計算を <strong>実機で操作して動作を確認した</strong>（<code>docs/verification.md</code>
+参照）。「動くはず」ではなく、この組み合わせで実際に動作したことを記載する。</p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>バージョン</th>
+<th>確認方法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WordPress</td>
+<td>6.6.2</td>
+<td>Docker イメージ <code>wordpress:6.6-php8.2-apache</code>。管理画面フッターの表示で確認</td>
+</tr>
+<tr>
+<td>PHP</td>
+<td>8.2.25</td>
+<td>上記 Docker イメージの Apache 起動ログ（<code>PHP/8.2.25</code>）で確認</td>
+</tr>
+<tr>
+<td>Welcart（usc-e-shop）</td>
+<td>2.12.1.2608181</td>
+<td>wordpress.org から取得した <code>usc-e-shop.2.12.1.zip</code>。プラグイン一覧・各管理画面のフッターで確認</td>
+</tr>
+<tr>
+<td>MariaDB</td>
+<td>10.11</td>
+<td>Docker イメージ <code>mariadb:10.11</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>上記構成での検証内容（<code>docs/verification.md</code> に詳細）:</p>
+<ul>
+<li>管理画面での複数段ルール設定と保存</li>
+<li>しきい値未満／到達時／上位段切り替え時のカート画面の割引表示</li>
+<li>購入確認画面の割引額とカート画面の整合</li>
+<li>受注データ（一覧・詳細・DB の <code>wp_usces_order.order_discount</code>）との整合</li>
+<li>受注編集画面での数量変更・再計算後も正しい段の割引が再適用されること</li>
+</ul>
+<p><strong>未確認の項目</strong>: PHP 7.4／8.0／8.1 系や WordPress 6.6 以外のバージョンでの動作、
+本番相当環境（Dokploy）へのデプロイ後の動作は未確認。設計書では Dokploy への
+デプロイ検証も検討していたが、時間の制約により今回は Docker Compose 環境での
+検証のみで完了とした。</p>
+<p>Composer の開発依存（PHPUnit 9.6.36 / PHP_CodeSniffer 3.13.6 相当、
+<code>composer.json</code> の <code>^</code> 指定範囲内）はローカル環境（PHP 8.2.29 / Composer 2.10.2）
+でインストールし、<code>composer lint</code> ・<code>composer test</code> を実行して確認した
+（<code>docs/screenshots/10-composer-lint.txt</code> ／ <code>docs/screenshots/11-composer-test.txt</code>）。</p>
+<h3 id="cigithub-actions">CI（GitHub Actions）<a class="anchor" href="#cigithub-actions">#</a></h3>
+<p><code>.github/workflows/ci.yml</code> で以下の4ジョブを実行している（<code>main</code> への push と
+プルリクエストで起動）。</p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>ジョブ</th>
+<th>PHP</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lint (WPCS / plugin)</code></td>
+<td>8.2</td>
+<td><code>composer lint</code> — プラグイン本体の WPCS 準拠</td>
+</tr>
+<tr>
+<td><code>lint (WPCS / verification env)</code></td>
+<td>8.2</td>
+<td><code>composer lint:env</code> — <code>docker/</code> 配下（検証環境）の WPCS 準拠</td>
+</tr>
+<tr>
+<td><code>test (PHPUnit)</code></td>
+<td>8.2</td>
+<td><code>composer test</code></td>
+</tr>
+<tr>
+<td><code>syntax (php -l on 7.4)</code></td>
+<td>7.4</td>
+<td>全 PHP ファイルの構文チェック</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>lint</code> / <code>test</code> を 8.2 で回しているのは、実際に動作確認した PHP バージョン
+（上表参照）に合わせるため。</p>
+<p><strong>当初 CI を PHP 7.4 で回そうとして失敗した経緯</strong>: 最初は GitLab CI
+（<code>.gitlab-ci.yml</code>）で <code>php:7.4-cli</code> を指定していたが、<code>composer.lock</code> は
+PHP 8 系で生成されており開発依存（<code>doctrine/instantiator</code> 2.0、
+<code>myclabs/deep-copy</code> 1.14 等）が PHP 8.1 以上を要求するため <code>composer install</code> が
+依存を解決できずに失敗した。<strong>リモートに push して実際に CI を回して初めて
+判明した</strong>もので、ローカルで <code>composer lint</code> / <code>composer test</code> が通っていても
+気づけない類の問題だった。この経緯は <code>docs/ai-report.md</code> にも記録している。</p>
+<p><code>composer.json</code> の <code>require</code> は <code>&quot;php&quot;: &quot;&gt;=7.4&quot;</code> としている。この下限については
+開発依存を必要としない構文チェック（<code>php -l</code>）を 7.4 で実行して裏付けている。
+<strong>7.4 で PHPUnit のテストが全て通ることまでは確認していない</strong>（<code>composer.lock</code> が
+8 系前提のため）。下限の根拠は構文互換の範囲に留まる。</p>
+<h2 id="必須要件チェックリスト">必須要件チェックリスト<a class="anchor" href="#必須要件チェックリスト">#</a></h2>
+<ul class="checklist">
+<li class="is-checked">独立したプラグインとして実装（Welcart 本体・テーマは無改変）</li>
+<li class="is-checked">管理画面からしきい値金額と割引額を複数段設定可能（<code>Welcart Shop &gt; 自動割引設定</code>）</li>
+<li class="is-checked">カート画面・購入確認画面・受注データの3箇所で割引が整合（実機確認済み。
+受注編集時の再計算も新規受注では整合を確認・不具合修正済み。ただし
+<strong>メタ未記録の既存受注には既知の限界が残る</strong>。詳細は下記「制限事項」参照）</li>
+<li class="is-checked">Welcart の既存フック／フィルタのみで実現（一覧は <code>docs/design-notes.md</code>）</li>
+<li class="is-checked">設定保存時の nonce 検証・入力サニタイズ・権限チェックを実装</li>
+<li class="is-checked">WordPress コーディングスタンダード準拠（<code>composer lint</code> 違反0件）</li>
+</ul>
+<h2 id="加点要件チェックリスト">加点要件チェックリスト<a class="anchor" href="#加点要件チェックリスト">#</a></h2>
+<ul class="checklist">
+<li class="is-checked">特定の会員ランクや商品カテゴリを除外する条件設定
+（<code>Welcart Shop &gt; 自動割引設定</code> の「除外条件」セクション。設計は
+<code>docs/design-notes.md</code>「第二段階: 除外条件設定」を参照）</li>
+<li class="is-checked">i18n 対応（全ユーザー向け文字列を <code>__()</code> / <code>esc_html__()</code> 経由にし、
+<code>class-wcd-plugin.php</code> で <code>load_plugin_textdomain()</code> を実行。翻訳テンプレートは
+<code>languages/welcart-cart-discount.pot</code>。なお Welcart 本体がフロント側のロケールを
+上書きする挙動については「Welcart の既定値についての補足」を参照）</li>
+<li class="is-checked">テストコード（WordPress 非依存の単体テスト <strong>46 tests, 53 assertions</strong>（<code>composer test</code>）と、
+実ブラウザで3箇所整合まで検証する E2E <strong>11件</strong>（<code>composer e2e</code>）。
+実行ログは <code>docs/verification.md</code>「20. 提出直前の最終確認」）</li>
+</ul>
+<h2 id="制限事項">制限事項<a class="anchor" href="#制限事項">#</a></h2>
+<h3 id="しきい値割引額は整数のみ対応小数単位のある通貨は非対応">しきい値・割引額は整数のみ対応（小数単位のある通貨は非対応）<a class="anchor" href="#しきい値割引額は整数のみ対応小数単位のある通貨は非対応">#</a></h3>
+<p>管理画面で設定するしきい値・割引額は整数として扱う。そのため、補助単位を
+小数で扱う通貨（例: USD の cent）で「$5.50 引き」のような設定はできない。</p>
+<p>なお、カート表に表示する金額の<strong>通貨記号と桁区切りは Welcart 側の通貨設定に
+追従する</strong>（Welcart 本体が金額表示に使う <code>usces_crform()</code> に委譲しているため）。
+当初は円記号を直書きしていたため、Welcart の通貨設定（既定値は USD）が
+何であっても円記号で表示され、カート表の他の金額と記号が食い違っていた。</p>
+<h3 id="受注再計算の既知の限界メタ未記録の既存受注">受注再計算の既知の限界（メタ未記録の既存受注）<a class="anchor" href="#受注再計算の既知の限界メタ未記録の既存受注">#</a></h3>
+<p>本プラグイン導入・修正より前に作成された受注（受注登録時に本プラグインが
+注入した割引額を記録する <code>wcd_injected_discount</code> メタが存在しない受注）に対しては、
+修正後最初の1回の「Recalculation」に限り誤った割引額が表示される
+（実機確認値: 正しくは -¥500 のところ <strong>-¥1,000</strong>、さらにそこから数量変更を
+重ねて再計算すると <strong>-¥2,500</strong>）。この誤りは1回では収まらず、以降の再計算でも
+そのずれを引きずり続ける。本プラグイン適用後に新規で確定した受注（メタが
+自動記録される受注）ではこの問題は発生しない。</p>
+<p><strong>回避手段</strong>: 管理画面の受注編集画面で「Campaign discount」欄の値を手動で
+正しい割引額に書き換えてから「change decision」（保存）を行う。これにより
+記録済みメタと表示中の値の矛盾が解消し、以降の再計算が正しく動作することを
+実機で確認済み。</p>
+<p>発生条件の解析・実機確認の手順の詳細は、<code>docs/design-notes.md</code> の
+「受注再計算の既知の限界（2周目修正で判明・未解決）」節
+（<a href="design-notes.html#受注再計算の既知の限界2周目修正で判明未解決">直接リンク</a>）を参照。</p>
+<h2 id="インストール">インストール<a class="anchor" href="#インストール">#</a></h2>
+<ol>
+<li><code>welcart-cart-discount</code> ディレクトリを <code>wp-content/plugins/</code> に配置する</li>
+<li>WordPress 管理画面のプラグイン一覧から「Welcart Cart Discount」を有効化する
+（Welcart Shop（<code>usc-e-shop</code>）が有効化されていない場合は管理画面に通知が表示され、
+フック登録は行われない）</li>
+<li><code>Welcart Shop &gt; 自動割引設定</code> からしきい値と割引額を設定する</li>
+</ol>
+<h2 id="ローカル動作確認手順">ローカル動作確認手順<a class="anchor" href="#ローカル動作確認手順">#</a></h2>
+<p>Docker があれば、次の2コマンドで<strong>動作確認できる状態のECサイトごと</strong>立ち上がる。
+WordPress・Welcart・本プラグイン・動作確認用テーマ・商品25点・割引ルール2段が
+すべて設定済みの状態になる。</p>
+<pre><code class="language-bash">docker compose -f docker/docker-compose.yml up -d --build
+./docker/setup.sh
+</code></pre>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>サイト</td>
+<td>http://localhost:8080</td>
+</tr>
+<tr>
+<td>管理画面</td>
+<td>http://localhost:8080/wp-admin/（<code>admin</code> / <code>admin</code>）</td>
+</tr>
+<tr>
+<td>割引設定</td>
+<td>http://localhost:8080/wp-admin/admin.php?page=wcd_settings</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>初期の割引ルールは課題文の例（10,000円以上で500円引き／30,000円以上で2,000円引き）を
+入れてある。サイトの商品をカートに入れるとしきい値到達で自動割引が適用される。</p>
+<p>8080 番が使用中の場合は <code>WP_PORT</code> で変更できる。</p>
+<pre><code class="language-bash">WP_PORT=8090 docker compose -f docker/docker-compose.yml up -d --build
+WP_PORT=8090 ./docker/setup.sh
+</code></pre>
+<p>初回はイメージのビルドに数分かかる。</p>
+<h3 id="2コマンドが何をしているか">2コマンドが何をしているか<a class="anchor" href="#2コマンドが何をしているか">#</a></h3>
+<ul>
+<li><strong><code>docker/Dockerfile</code></strong> … 公式 <code>wordpress:6.6-php8.2-apache</code> イメージに、
+wordpress.org から取得した Welcart（<code>usc-e-shop</code> <strong>2.12.1</strong> 固定）と、
+動作確認用テーマ（<code>docker/theme/welcart-shop-theme</code>）を同梱する。
+配置先を <code>/var/www/html</code> ではなく <code>/usr/src/wordpress/wp-content/</code> 配下に
+しているのは、公式イメージの <code>docker-entrypoint.sh</code> が初回起動時に
+<code>/usr/src/wordpress</code> を <code>/var/www/html</code> へ展開する作りのため
+（<code>/var/www/html</code> は名前付きボリュームでマスクされるので残らない）。
+entrypoint はプラグイン・テーマを「差し替え可能な内容」として扱い、
+展開先に既に存在する場合はスキップするので、ボリュームを残したまま
+再起動しても既存の Welcart / テーマを上書きしない。</li>
+<li><strong><code>docker/setup.sh</code></strong> … WP-CLI で以下を行う。<strong>冪等</strong>で、何度実行しても
+同じ結果になる。
+<ul>
+<li><code>wp core install</code> と日本語言語パックの導入</li>
+<li><code>usc-e-shop</code> / <code>welcart-cart-discount</code> の有効化、テーマの有効化</li>
+<li>Welcart の日本向け設定（通貨・表示言語・住所形式・対象国・配送方法）</li>
+<li><code>docker/seed-items.php</code> による動作確認用の商品25点の投入</li>
+<li>割引ルールの初期値の設定（未設定の場合のみ）</li>
+</ul>
+</li>
+</ul>
+<p>本プラグイン自体は <code>docker-compose.yml</code> の bind mount により
+<code>wp-content/plugins/welcart-cart-discount</code> としてマウントされる
+（リポジトリ直下がそのままプラグインディレクトリになる）。</p>
+<h3 id="動作確認用テーマについて">動作確認用テーマについて<a class="anchor" href="#動作確認用テーマについて">#</a></h3>
+<p><code>docker/theme/welcart-shop-theme</code> は<strong>提出物ではなく検証環境の一部</strong>である。
+本プラグインは Welcart のカート系フィルタに接続するだけでテーマに依存しないため、
+<strong>どのテーマでも動作する</strong>（デフォルトテーマでも割引は適用される）。
+実際の購買導線に近い見た目で動作確認・スクリーンショット取得を行うために用意した。</p>
+<p>テーマ側も Welcart 本体のファイルは一切改変していない。カート導線6画面は
+<code>usc-e-shop/templates/cart/*.php</code> を <code>include</code> してロジックをそのまま流用し、
+CSS のみで装飾している。</p>
+<h3 id="テーマを編集しながら確認する場合">テーマを編集しながら確認する場合<a class="anchor" href="#テーマを編集しながら確認する場合">#</a></h3>
+<p>テーマはイメージに焼き込んでいるため、編集して再ビルドしても既存ボリュームには
+反映されない（entrypoint が既存テーマをスキップするため）。編集を即座に
+反映させたい場合は <code>docker/compose.dev.yml</code> を重ねて bind mount する。</p>
+<pre><code class="language-bash">docker compose -f docker/docker-compose.yml -f docker/compose.dev.yml up -d
+</code></pre>
+<h3 id="welcart-の既定値についての補足">Welcart の既定値についての補足<a class="anchor" href="#welcart-の既定値についての補足">#</a></h3>
+<p>Welcart の初期状態は米国向け（表示言語 英語・通貨 USD・US住所形式・国際便）に
+なっている。本プラグインの動作条件ではないが、既定のままだと金額が <code>$</code> 表示になり
+本 README のスクリーンショットと食い違うため、<code>setup.sh</code> で日本向けに設定している。</p>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>設定項目（<code>usces</code> オプション）</th>
+<th>既定値</th>
+<th><code>setup.sh</code> 適用後</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>['system']['currency']</code></td>
+<td><code>US</code></td>
+<td><code>JP</code></td>
+</tr>
+<tr>
+<td><code>['system']['front_lang']</code></td>
+<td><code>en</code></td>
+<td><code>ja</code></td>
+</tr>
+<tr>
+<td><code>['system']['addressform']</code></td>
+<td><code>US</code></td>
+<td><code>JP</code></td>
+</tr>
+<tr>
+<td><code>['system']['target_market']</code></td>
+<td><code>['US']</code></td>
+<td><code>['JP']</code></td>
+</tr>
+<tr>
+<td><code>['delivery_method'][n]['intl']</code></td>
+<td><code>1</code></td>
+<td><code>0</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>front_lang</code> は WordPress のサイト言語とは独立した Welcart 独自の設定である。
+<code>usc-e-shop/usc-e-shop.php</code> が <code>add_filter( 'locale', 'usces_filter_locale' )</code> で
+フロント側のロケールを上書きするため、WordPress 側を日本語にしても
+<code>get_locale()</code> は <code>en</code> を返し、カート画面の文言は英語のままになる。</p>
+<h3 id="テストとコーディング規約チェック">テストとコーディング規約チェック<a class="anchor" href="#テストとコーディング規約チェック">#</a></h3>
+<pre><code class="language-bash">composer install
+composer test   # PHPUnit
+composer lint   # PHP_CodeSniffer（WPCS）
+</code></pre>
+<h3 id="e2e-テストplaywright">E2E テスト（Playwright）<a class="anchor" href="#e2e-テストplaywright">#</a></h3>
+<p>カート画面・購入確認画面・受注データの3箇所整合と、受注編集画面での再計算の
+べき等性を、実ブラウザ（Playwright）で自動検証できる。上記「ローカル動作確認手順」の
+Docker 検証環境に対して動作するため、前提として <strong>Docker と Node.js が必要</strong>
+（検証した Node のバージョン: v24.12.0）。</p>
+<pre><code class="language-bash">composer e2e         # 検証環境の用意（未起動なら起動・不足があれば補う）→ 既知の状態へリセット → Playwright 実行
+composer e2e:up      # 検証環境の用意のみ（起動済み・準備済みなら何もしない。冪等）
+composer e2e:reset   # 割引設定（wcd_settings / wcd_exclusions）だけを既知の状態に戻す
+composer e2e:down    # 検証環境をボリュームごと破棄する（次回の e2e:up はまっさらから再構築）
+</code></pre>
+<p>4つの spec（<code>e2e/tests/</code>）・計11件がすべて PASS することを確認済み
+（実行ログ: </p><details class="log"><summary>docs/screenshots/47-e2e-full-run.txt</summary><pre> Container docker-db-1  Running
+==&gt; 検証環境は準備済み（商品 27 点）
+==&gt; 割引ルールを既知の状態にする（10,000円以上-500円 / 30,000円以上-2,000円）
+ Container docker-db-1  Running
+Success: Value passed for &#x27;wcd_settings&#x27; option is unchanged.
+==&gt; 除外設定を空にする
+ Container docker-db-1  Running
+Success: Value passed for &#x27;wcd_exclusions&#x27; option is unchanged.
+==&gt; リセット完了
+==&gt; Playwright を実行
+
+Running 11 tests using 1 worker
+
+(node:9063) Warning: The &#x27;NO_COLOR&#x27; env is ignored due to the &#x27;FORCE_COLOR&#x27; env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   1 tests/01-cart-display.spec.ts:24:7 › カート画面の割引表示 › しきい値未満では割引行が出ない (2.0s)
+ Container docker-db-1  Running
+  ✓   2 tests/01-cart-display.spec.ts:33:7 › カート画面の割引表示 › 1段目に到達すると -500 と割引後合計が出る (1.9s)
+ Container docker-db-1  Running
+  ✓   3 tests/01-cart-display.spec.ts:41:7 › カート画面の割引表示 › 2段目に到達すると -2000 に切り替わり、累積しない (1.9s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   4 tests/02-checkout-consistency.spec.ts:27:7 › 割引の3箇所整合と受注再計算のべき等性 › カート画面と購入確認画面で割引額が一致し、購入を完了できる (5.2s)
+  ✓   5 tests/02-checkout-consistency.spec.ts:44:7 › 割引の3箇所整合と受注再計算のべき等性 › 確定後の受注データにも同じ割引額が記録されている (1.4s)
+  ✓   6 tests/02-checkout-consistency.spec.ts:52:7 › 割引の3箇所整合と受注再計算のべき等性 › 再計算を3回繰り返しても割引額が変動しない（二重計上の非再発） (1.9s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   7 tests/03-category-exclusion.spec.ts:25:7 › 除外カテゴリによる部分除外 › 除外なしなら除外対象カテゴリの商品も合算されて割引される (3.8s)
+ Container docker-db-1  Running
+  ✓   8 tests/03-category-exclusion.spec.ts:36:7 › 除外カテゴリによる部分除外 › エフェクターを除外すると対象小計が下がり割引が消える (1.2s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   9 tests/03-category-exclusion.spec.ts:44:7 › 除外カテゴリによる部分除外 › 除外により適用される段が下がる (5.0s)
+  ✓  10 tests/04-admin-settings.spec.ts:24:7 › 管理画面からの設定保存 › 管理画面で保存したしきい値と割引額が再表示される (1.4s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓  11 tests/04-admin-settings.spec.ts:42:7 › 管理画面からの設定保存 › ログインしていないと設定画面を開けない (213ms)
+
+  11 passed (40.2s)
+</pre></details><p>）。</p>
+<ul>
+<li><code>01-cart-display.spec.ts</code> — カート画面の割引表示（しきい値未満・1段目到達・2段目への切り替え）</li>
+<li><code>02-checkout-consistency.spec.ts</code> — カート・購入確認・受注データの3箇所整合、
+受注編集画面での再計算3回のべき等性（課題の核心要件に対応）</li>
+<li><code>03-category-exclusion.spec.ts</code> — 除外カテゴリによる部分除外（加点要件）</li>
+<li><code>04-admin-settings.spec.ts</code> — 管理画面からの設定保存、未ログイン時のアクセス拒否</li>
+</ul>
+<p><strong>E2Eは <code>docker/</code> の検証環境専用であり、汎用のリグレッションスイートではない。</strong> 検証用
+テーマ（<code>docker/theme/welcart-shop-theme</code>）が描画する DOM 構造・<code>docker/seed-items.php</code>
+が投入する商品データ・管理者アカウント（<code>admin</code> / <code>admin</code>）に依存しており、他の環境や
+テーマに対してそのまま実行できることは意図していない。CI（GitHub Actions）にも
+載せていない（理由は <code>docs/design-notes.md</code> を参照）。</p>
+<p><strong>既知の限界（在庫消費）</strong>: <code>02-checkout-consistency.spec.ts</code> は実際に購入を完走するため、
+実行のたびに対象商品（Practice Pad Set・Compact Tuner Pedal）の在庫を1個ずつ消費する。
+<code>composer e2e:reset</code> が戻すのは <code>wcd_settings</code> / <code>wcd_exclusions</code> の2オプションのみで、
+在庫数は戻さない。在庫が尽きるとカート追加ボタンがエラーを出さずに無反応となり、他の
+spec がエラーメッセージのない原因不明の失敗に見えることがある。発生した場合は
+<code>composer e2e:down</code> で検証環境を作り直す（商品データは <code>docker/setup.sh</code> により
+再投入される）。</p>
+<h2 id="ディレクトリ構成">ディレクトリ構成<a class="anchor" href="#ディレクトリ構成">#</a></h2>
+<pre><code>welcart-cart-discount/          ← このディレクトリがそのままプラグインになる
+├── welcart-cart-discount.php   プラグインのエントリポイント
+├── includes/                   プラグイン本体
+│   ├── class-wcd-rule.php            1段の割引ルール（しきい値・割引額）
+│   ├── class-wcd-calculator.php      小計から適用段を決める計算
+│   ├── class-wcd-settings.php        設定の正規化・保存・読み出し
+│   ├── class-wcd-cart-row-builder.php カート表に挿す割引行の組み立て
+│   ├── class-wcd-integration.php     Welcart のフックへの接続
+│   ├── class-wcd-exclusion-calculator.php 除外分の純粋計算
+│   ├── class-wcd-exclusion-settings.php   除外設定の正規化・保存・読み出し
+│   ├── class-wcd-exclusion.php            除外条件のフックへの接続
+│   ├── class-wcd-admin.php           管理画面
+│   └── class-wcd-plugin.php          フック登録
+├── languages/                  翻訳ファイル（i18n）
+├── tests/                      PHPUnit（WordPress 非依存の単体テスト）
+├── docs/                       提出用ドキュメント（設計メモ・AI活用レポート等）
+├── docker/                     検証環境（提出物ではない）
+│   ├── Dockerfile              Welcart とテーマを同梱したイメージ
+│   ├── docker-compose.yml
+│   ├── compose.dev.yml         テーマ編集用の bind mount 追加設定
+│   ├── setup.sh                初期化スクリプト（冪等）
+│   ├── seed-items.php          動作確認用の商品25点投入
+│   └── theme/welcart-shop-theme/  動作確認用テーマ
+├── e2e/                         E2Eテスト（Playwright、docker/ 検証環境専用。提出物ではあるがプラグイン本体の動作には不要）
+│   ├── bin/                    環境準備（env-up.sh）・リセット（env-reset.sh）・破棄（env-down.sh）・統合入口（run.sh）
+│   ├── helpers/                shop.ts（カート・購入フロー）/ admin.ts（管理画面）/ wpcli.ts（WP-CLI経由の前提データ投入）
+│   ├── tests/                  4 spec（カート表示・3箇所整合・除外・管理画面設定、計11件）
+│   └── playwright.config.ts
+├── composer.json / phpcs.xml.dist
+└── .github/workflows/          CI（GitHub Actions）
+    └── ci.yml                  WPCS×2・PHPUnit・構文チェックの4ジョブ
+</code></pre>
+<p><code>docker/</code> 以下は検証環境用であり、プラグインの動作には不要
+（実サイトへ配置する際は <code>docker/</code> <code>e2e/</code> <code>tests/</code> <code>vendor/</code> を除外してよい）。</p>
+<h2 id="ドキュメント">ドキュメント<a class="anchor" href="#ドキュメント">#</a></h2>
+<ul>
+<li>設計メモ（フック選定理由・検討したが不採用の候補）: <code>docs/design-notes.md</code></li>
+<li>AI活用レポート（使用ツール・誤りの発見と修正・うまくいかなかったこと）: <code>docs/ai-report.md</code></li>
+<li>動作確認の記録（スクリーンショット）: <code>docs/verification.md</code></li>
+</ul>
+
+      </article>
+    </main>
+  </div>
+  <dialog id="lightbox" class="lightbox-dialog">
+    <img id="lightbox-img" src="" alt="">
+    <button type="button" class="lightbox-close" aria-label="閉じる">×</button>
+  </dialog>
+  <script src="assets/doc.js" defer></script>
+</body>
+</html>
