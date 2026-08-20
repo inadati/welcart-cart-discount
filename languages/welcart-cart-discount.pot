@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-18T05:49:12+00:00\n"
+"POT-Creation-Date: 2026-08-20T01:15:13+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: welcart-cart-discount\n"
@@ -36,7 +36,7 @@ msgstr ""
 
 #: includes/class-wcd-admin.php:43
 #: includes/class-wcd-admin.php:44
-#: includes/class-wcd-admin.php:64
+#: includes/class-wcd-admin.php:65
 msgid "自動割引設定"
 msgstr ""
 
@@ -44,47 +44,75 @@ msgstr ""
 msgid "この画面にアクセスする権限がありません。"
 msgstr ""
 
-#: includes/class-wcd-admin.php:65
+#: includes/class-wcd-admin.php:66
 msgid "カート合計金額のしきい値と割引額を複数段設定できます。到達した最上位の1段のみが適用されます。"
 msgstr ""
 
-#: includes/class-wcd-admin.php:68
+#: includes/class-wcd-admin.php:69
 msgid "設定を保存しました。"
 msgstr ""
 
-#: includes/class-wcd-admin.php:76
+#: includes/class-wcd-admin.php:77
 msgid "しきい値金額（円）"
 msgstr ""
 
-#: includes/class-wcd-admin.php:77
+#: includes/class-wcd-admin.php:78
 msgid "割引額（円）"
 msgstr ""
 
-#: includes/class-wcd-admin.php:86
-#: includes/class-wcd-admin.php:104
+#: includes/class-wcd-admin.php:87
+#: includes/class-wcd-admin.php:127
 msgid "削除"
 msgstr ""
 
-#: includes/class-wcd-admin.php:91
+#: includes/class-wcd-admin.php:92
 msgid "行を追加"
 msgstr ""
 
-#: includes/class-wcd-admin.php:92
+#: includes/class-wcd-admin.php:94
+msgid "除外条件"
+msgstr ""
+
+#: includes/class-wcd-admin.php:95
+msgid "特定の会員ランクや商品カテゴリを自動割引の対象から除外できます。"
+msgstr ""
+
+#: includes/class-wcd-admin.php:97
+msgid "除外する会員ランク"
+msgstr ""
+
+#: includes/class-wcd-admin.php:98
+msgid "会員システムが無効な店舗では全員が「未ログイン（非会員）」として扱われます。このチェックを入れると割引が全面的に停止するため注意してください。"
+msgstr ""
+
+#: includes/class-wcd-admin.php:106
+msgid "除外する商品カテゴリ"
+msgstr ""
+
+#: includes/class-wcd-admin.php:107
+msgid "除外カテゴリに直接属する商品の金額は、しきい値判定の対象から除外されます（該当商品分を差し引いた額で判定します。子カテゴリは含みません）。"
+msgstr ""
+
+#: includes/class-wcd-admin.php:115
 msgid "設定を保存"
 msgstr ""
 
-#: includes/class-wcd-admin.php:131
+#: includes/class-wcd-admin.php:178
 msgid "この操作を行う権限がありません。"
 msgstr ""
 
-#: includes/class-wcd-integration.php:89
+#: includes/class-wcd-exclusion-settings.php:124
+msgid "未ログイン（非会員）"
+msgstr ""
+
+#: includes/class-wcd-integration.php:253
 msgid "自動割引"
 msgstr ""
 
-#: includes/class-wcd-integration.php:91
+#: includes/class-wcd-integration.php:258
 msgid "割引後合計"
 msgstr ""
 
-#: includes/class-wcd-plugin.php:52
+#: includes/class-wcd-plugin.php:56
 msgid "Welcart Cart Discount には Welcart Shop プラグインの有効化が必要です。"
 msgstr ""
