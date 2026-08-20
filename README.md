@@ -78,6 +78,12 @@ PHP 8 系で生成されており開発依存（`doctrine/instantiator` 2.0、
 - [x] 設定保存時の nonce 検証・入力サニタイズ・権限チェックを実装
 - [x] WordPress コーディングスタンダード準拠（`composer lint` 違反0件）
 
+## 加点要件チェックリスト
+
+- [x] 特定の会員ランクや商品カテゴリを除外する条件設定
+      （`Welcart Shop > 自動割引設定` の「除外条件」セクション。設計は
+      `docs/design-notes.md`「第二段階: 除外条件設定」を参照）
+
 ## 制限事項
 
 ### しきい値・割引額は整数のみ対応（小数単位のある通貨は非対応）
@@ -229,6 +235,9 @@ welcart-cart-discount/          ← このディレクトリがそのままプ�
 │   ├── class-wcd-settings.php        設定の正規化・保存・読み出し
 │   ├── class-wcd-cart-row-builder.php カート表に挿す割引行の組み立て
 │   ├── class-wcd-integration.php     Welcart のフックへの接続
+│   ├── class-wcd-exclusion-calculator.php 除外分の純粋計算
+│   ├── class-wcd-exclusion-settings.php   除外設定の正規化・保存・読み出し
+│   ├── class-wcd-exclusion.php            除外条件のフックへの接続
 │   ├── class-wcd-admin.php           管理画面
 │   └── class-wcd-plugin.php          フック登録
 ├── languages/                  翻訳ファイル（i18n）

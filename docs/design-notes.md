@@ -282,3 +282,73 @@ WordPress 標準の Settings API（`register_setting()` / `add_settings_field()`
 「検討したが採用しなかった候補」というより「設計の誤りをコードより先に
 実ソースで検出できた事例」であり、AI活用レポート（`docs/ai-report.md`）にも
 同じ事実を記録する。
+
+---
+
+## 第二段階: 除外条件設定（会員ランク・商品カテゴリ）
+
+設計書 `.nipper/chot/specs/2026-08-20-welcart-cart-discount-exclusions-design.md` に基づく
+加点要件の実装。第一段階で設置済みの独自フィルタ2本（`wcd_eligible_subtotal` /
+`wcd_available_rules`）に接続する形で実装し、Welcart 側に新規フックは要求していない
+（使用するフックは第一段階の4本のまま増えていない）。
+
+### 実装計画作成時に発見した設計書内の記述矛盾
+
+設計書の「既存ファイルへの変更」表は `includes/class-wcd-integration.php` を
+「変更しない（拡張点は設置済み）」としていたが、同じ設計書の「データフロー／経路2」節は
+「`WCD_Integration::filter_order_recalculation()` の実行中だけ `WCD_Exclusion` に
+対象受注IDを通知する静的プロパティ」という実装方針を明記していた。`wcd_available_rules`
+フィルタの引数は `($rules, $cart)` の2つのみで `$order_id` を含まないため、この通知を
+実現するには `filter_order_recalculation()` の本体（`calculate_amount()` を呼ぶ箇所）に
+2行を追加する以外の手段がなく、「変更しない」は誤りだった。実装計画作成（writing-plans
+フェーズ）の時点でこの矛盾に気づき、「フィルタのシグネチャ・契約は変えないが、本体には
+最小限の2行を追加する」方針に修正して実装した（`includes/class-wcd-integration.php` の
+`filter_order_recalculation()` 冒頭、コミット `feat: 受注再計算時に対象受注IDを
+WCD_Exclusion へ通知する`）。詳細は `docs/ai-report.md`「AIの出力が誤っていた箇所」を
+参照。
+
+### 会員ランク解決の経路依存（第一段階からの拡張点）
+
+会員ランクの解決元は、カート・確認画面（セッション中のログイン会員）と受注編集の再計算
+（受注の持ち主）とで異なる。この非対称性は第一段階の `usces_filter_order_discount_recalculation`
+に関する調査（「$discount の性質」節）と同種の構造であり、除外条件の実装でも同じ注意点
+（フィルタの呼び出し文脈によって参照すべきデータソースが変わる）が再度現れた。
+
+### `WCD_Exclusion_Settings::normalize()` の categories 正規化バグ（実装時に発見・修正）
+
+`normalize()` のテスト（`tests/unit/WCD_Exclusion_SettingsTest.php`）を書く段階で、
+`categories` に負値（`-1`）を渡すと破棄されずに `1` として残ってしまう不具合を実装中に
+発見した。原因は、`absint()` を先に適用してから `$category_id <= 0` で0以下判定を
+行っていたため、`absint( -1 )` が `1`（絶対値）に変換され、非正数判定をすり抜けていた
+ことにある。第一段階の `WCD_Settings::normalize()`（`docs/ai-report.md`「AIの出力が
+誤っていた箇所」2）で踏んだのと同種の落とし穴が、今回は設計書の疑似コードの記述段階で
+再発した。修正はチェック順序を入れ替え、`is_numeric( $category ) && $category <= 0` の
+判定を **`absint()` 適用前の生値**に対して行う形にした（`includes/class-wcd-exclusion-settings.php`）。
+第一段階のコメント規約を踏襲し、同じ理由をコード内コメントとして残している。
+
+### 単体テスト件数: 実装計画の想定（32件）と実際（44件）の乖離
+
+実装計画は「既存15件 + 新規17件 = 32件」を想定していたが、実際には既存テストは
+27件（第一段階の完了後に `WCD_Cart_Row_BuilderTest`（11件）が追加されており、
+計画作成時点で参照した「15件」という数字はその追加前の値だった）あり、新規17件
+（`WCD_Exclusion_CalculatorTest` 10件 + `WCD_Exclusion_SettingsTest` 7件）と合わせて
+実際の合計は **44件**である。計画書の想定件数はチェックリストの目安として書かれた
+ものであり、実装・レビューの判断には実測件数（`composer test` の出力）を優先した。
+
+### 並行 generator 間のコミット競合とその復旧
+
+タスク7（`WCD_Integration::filter_order_recalculation()` への文脈受け渡し追加）担当と
+タスク8・9（`WCD_Admin` の除外設定UI追加・保存処理接続）担当は、chot-harness の
+generator フェーズで同一バッチ内の別サブエージェントとして並行実行された。作業対象
+ファイルが分かれていたにもかかわらず、タスク7担当が `git add` 後に `git commit` した
+際、同時にステージされていたタスク8・9担当の `includes/class-wcd-admin.php` の変更を
+巻き込んでコミットしてしまう競合が一時的に発生した。双方とも、他方が既に作業ツリーに
+残していた変更履歴を失わせないよう `git rebase` や `git commit --amend` は使わず、
+`git reset --soft` で直前のコミットを取り消してから改めて対象ファイルを個別に
+`git add` し直し、意図通りの分離コミット（`0801e20 feat: 受注再計算時に対象受注IDを
+WCD_Exclusion へ通知する` / `b7bc047 feat: 設定画面に除外条件（会員ランク・商品カテゴリ）
+のUIを追加` / `63a232e feat: 除外設定の保存を既存のnonce・権限チェックに相乗りさせる`）
+に直した。この復旧の過程は `git reflog` にも残っている（`53713ee` への `reset: moving
+to HEAD~1` のエントリ）。並列 generator 運用では、同一リポジトリ上でサブエージェントが
+`git add -A` 等の広い範囲のステージングを行うと他エージェントの作業中の変更を意図せず
+巻き込みうる、という実例として記録する。
