@@ -1,0 +1,8 @@
+$ vendor/bin/phpunit --bootstrap tests/bootstrap.php tests/unit
+PHPUnit 9.6.36 by Sebastian Bergmann and contributors.
+
+..............................................                    46 / 46 (100%)
+
+Time: 00:00.013, Memory: 6.00 MB
+
+OK (46 tests, 53 assertions)

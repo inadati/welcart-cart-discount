@@ -101,7 +101,8 @@ DB（`order_item_total_price=12000.00` / `order_discount=-500.00`）へ正しく
 
 ## 7. `composer lint` と `composer test` の実行結果
 
-上記の不具合修正後、最終状態で再実行した結果。
+上記の不具合修正を終えた**この時点での**再実行結果。以降の周回で回帰テストを追加した
+ため、テスト件数はここから増えている。**最新の値は「20. 提出直前の最終確認」を参照**。
 
 - lint: [`docs/screenshots/10-composer-lint.txt`](screenshots/10-composer-lint.txt)（違反0件）
 - test: [`docs/screenshots/11-composer-test.txt`](screenshots/11-composer-test.txt)（15 tests, 17 assertions, OK）
@@ -581,6 +582,28 @@ try/finally が新たに挟まった後も、`get_injected_discount()` /
 `beforeAll` の `resetToKnownState()` が空振り確認を無効化してしまう計画内部の矛盾
 （一時的に無効化して回避した）の詳細は `docs/ai-report.md`「21. 意図的な失敗確認（空振り
 検知）の実施記録（2周目修正）」を参照。
+
+## 20. 提出直前の最終確認（E2E 全件・単体テスト・コーディング規約）
+
+提出物が最新のコードに追随しているかを確かめるため、稼働中の Docker 検証環境に対して
+E2E スイート全件を通しで実行し、あわせて単体テストと WPCS チェックを再取得した。
+19節が記録しているのは「意図的に壊した場合に FAIL するか（空振り検知）」であり、
+全件を素の状態で通した記録は本節が初出である。
+
+| 対象 | コマンド | 結果 | ログ |
+| --- | --- | --- | --- |
+| E2E（Playwright） | `composer e2e` | **11 passed (40.2s)** | [`47-e2e-full-run.txt`](screenshots/47-e2e-full-run.txt) |
+| 単体テスト | `composer test` | **46 tests, 53 assertions, OK** | [`48-composer-test-latest.txt`](screenshots/48-composer-test-latest.txt) |
+| コーディング規約 | `composer lint` | 11 / 11 ファイル、**違反0件** | [`49-composer-lint-latest.txt`](screenshots/49-composer-lint-latest.txt) |
+
+E2E の内訳は 01-cart-display（3件）・02-checkout-consistency（3件）・
+03-category-exclusion（3件）・04-admin-settings（2件）の計11件で、いずれも PASS した。
+単体テストの46 tests, 53 assertions は18節で記録した値と一致しており、その後
+プラグイン本体（`includes/`）に変更が入っていないことの裏付けにもなっている。
+
+**実行環境についての注記**: 本節の単体テスト・WPCS はホスト側の PHP 8.2.29 で実行した
+（18節は Docker コンテナ内の PHP 8.2.25 で実行）。件数・アサーション数・違反件数は
+両者で一致した。
 
 ## その他の記録（参考）
 

@@ -1,0 +1,48 @@
+ Container docker-db-1  Running
+==> 検証環境は準備済み（商品 27 点）
+==> 割引ルールを既知の状態にする（10,000円以上-500円 / 30,000円以上-2,000円）
+ Container docker-db-1  Running
+Success: Value passed for 'wcd_settings' option is unchanged.
+==> 除外設定を空にする
+ Container docker-db-1  Running
+Success: Value passed for 'wcd_exclusions' option is unchanged.
+==> リセット完了
+==> Playwright を実行
+
+Running 11 tests using 1 worker
+
+(node:9063) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   1 tests/01-cart-display.spec.ts:24:7 › カート画面の割引表示 › しきい値未満では割引行が出ない (2.0s)
+ Container docker-db-1  Running
+  ✓   2 tests/01-cart-display.spec.ts:33:7 › カート画面の割引表示 › 1段目に到達すると -500 と割引後合計が出る (1.9s)
+ Container docker-db-1  Running
+  ✓   3 tests/01-cart-display.spec.ts:41:7 › カート画面の割引表示 › 2段目に到達すると -2000 に切り替わり、累積しない (1.9s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   4 tests/02-checkout-consistency.spec.ts:27:7 › 割引の3箇所整合と受注再計算のべき等性 › カート画面と購入確認画面で割引額が一致し、購入を完了できる (5.2s)
+  ✓   5 tests/02-checkout-consistency.spec.ts:44:7 › 割引の3箇所整合と受注再計算のべき等性 › 確定後の受注データにも同じ割引額が記録されている (1.4s)
+  ✓   6 tests/02-checkout-consistency.spec.ts:52:7 › 割引の3箇所整合と受注再計算のべき等性 › 再計算を3回繰り返しても割引額が変動しない（二重計上の非再発） (1.9s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   7 tests/03-category-exclusion.spec.ts:25:7 › 除外カテゴリによる部分除外 › 除外なしなら除外対象カテゴリの商品も合算されて割引される (3.8s)
+ Container docker-db-1  Running
+  ✓   8 tests/03-category-exclusion.spec.ts:36:7 › 除外カテゴリによる部分除外 › エフェクターを除外すると対象小計が下がり割引が消える (1.2s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓   9 tests/03-category-exclusion.spec.ts:44:7 › 除外カテゴリによる部分除外 › 除外により適用される段が下がる (5.0s)
+  ✓  10 tests/04-admin-settings.spec.ts:24:7 › 管理画面からの設定保存 › 管理画面で保存したしきい値と割引額が再表示される (1.4s)
+ Container docker-db-1  Running
+ Container docker-db-1  Running
+  ✓  11 tests/04-admin-settings.spec.ts:42:7 › 管理画面からの設定保存 › ログインしていないと設定画面を開けない (213ms)
+
+  11 passed (40.2s)

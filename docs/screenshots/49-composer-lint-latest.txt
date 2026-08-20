@@ -1,0 +1,6 @@
+$ vendor/bin/phpcs --standard=phpcs.xml.dist
+........... 11 / 11 (100%)
+
+
+Time: 1.01 secs; Memory: 16MB
+
