@@ -525,7 +525,8 @@ Pedal=40 / OD-1 Overdrive=36 / Maple Snare 14inch=46 であり、共有環境の
 本ラウンドで解消した。`e2e/helpers/wpcli.ts` に `getItemPostId()` / `getItemUrl()` を
 追加し、商品名から投稿IDを動的に解決する方式に変更した。`wp post list --title=...
 --post_mime_type=item` は `env-up.sh` の商品数カウントと同じ理由（Welcart側の
-pre_get_posts フックの影響でフィルタが機能しない）で使えないため、
+`pre_get_posts` フックが介在するとみられ、フィルタとして機能しない。原因の完全な
+特定までは行っていない）で使えないため、
 `getCategoryId()`（`wp term list`）と同じパターンは踏襲できず、`$wpdb->prepare()` を
 使う `wp eval` 経由で取得する方式にした。`e2e/helpers/shop.ts` の `ITEMS` からは
 `url`（投稿ID直値）フィールドを削除し、`addToCart()` 内で商品名ごとに URL を
