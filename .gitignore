@@ -8,5 +8,7 @@
 /.tmp-upload/
 /.playwright-mcp/
 
-# chot-harness の作業履歴（ツール内部データ）
-/.nipper/
+# chot-harness の作業履歴（ツール内部データ。ただし本プラグインの判断過程を示す
+# archive は例外的に含める。他プロジェクト分のarchiveは対象外）
+/.nipper/*
+!/.nipper/chot-archive-2026-08-18-cart-discount/

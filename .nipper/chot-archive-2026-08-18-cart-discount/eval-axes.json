@@ -1,0 +1,166 @@
+{
+  "axes": [
+    {
+      "id": "requirements-coverage",
+      "name": "必須要件適合性",
+      "perspective": "課題文・設計書に明記された必須要件6つ（独立プラグイン／複数段しきい値設定／カート・確認・受注の3箇所整合／Welcart既存フックのみ／nonce検証等のセキュリティ／WPCS準拠）がすべて実装されているか",
+      "criteria": "各要件について対応する実装箇所（ファイル・行）を特定できること。1つでも実装が欠けている、または部分的にしか満たしていない場合は不合格とする。加点要件（会員ランク・カテゴリ除外・i18n・テストコード）についても、設計書が第一段階で用意すると宣言した範囲（i18nのテキストドメイン通し・テストコード・拡張フック）が実際に揃っているか確認する"
+    },
+    {
+      "id": "plan-compliance",
+      "name": "実装計画タスク遵守",
+      "perspective": "実装計画（2026-08-18-welcart-cart-discount.md）のタスク1〜16それぞれが計画通りに実施されたか、計画からの逸脱があれば理由が記録されているか",
+      "criteria": "git log とファイル内容を突き合わせ、各タスクのステップ（テスト作成→失敗確認→実装→成功確認→コミット等）が飛ばされずに行われた痕跡があること。計画のコード例と実装が異なる場合（例: タスク5の調査結果に基づく修正）は、その理由がdocs/design-notes.mdまたはdocs/ai-report.mdに明記されていること"
+    },
+    {
+      "id": "constraint-compliance",
+      "name": "制約・禁止事項の遵守",
+      "perspective": "設計書「制約・禁止事項」節（Welcart本体・テーマ無改変／独自フックのみ使用／usces_プレフィックス不使用／第二段階の未実装／第一段階テストコード非改変）が守られているか",
+      "criteria": "grep等でusces_プレフィックスが本プラグインの関数・フック・オプション名に使われていないこと、includes/配下に会員ランク・商品カテゴリ除外のロジックが実装されていないこと、docker/等にWordPress本体・Welcart本体のソースが同梱されていないことを確認する"
+    },
+    {
+      "id": "three-point-consistency",
+      "name": "カート・確認画面・受注データの3箇所整合",
+      "perspective": "課題の主眼である「割引額がカート画面・購入確認画面・受注データの3箇所で一致すること」が、コードロジック上も実機証跡上も裏付けられているか",
+      "criteria": "usces_order_discountフィルタ1本から3箇所すべてに割引が伝播する設計になっていること、docs/verification.mdおよびdocs/screenshots/の証跡がしきい値未満・到達・上位段切り替えの各状態で3箇所の金額が実際に一致していることを示していること。数値の食い違い（例: カート¥2,000引き・確認画面¥1,500引きなど）が1箇所でもあれば重大な不合格事由とする"
+    },
+    {
+      "id": "recalculation-fix-soundness",
+      "name": "受注再計算バグ修正の妥当性",
+      "perspective": "受注編集の再計算で割引が二重計上されるバグの修正が、最終的に採用された実装（$_POST['change_taxrate']による経路分岐＋wp_usces_order_metaへの自プラグイン注入額の記録・差し戻し）として副作用なく正しく機能するか",
+      "criteria": "change_taxrate==='change'の分岐とそれ以外の分岐それぞれについて、計算式（other_components = $discount + $previous_injected、new_discount = other_components - $amount 等）が数学的に正しいことをコードで確認する。修正後のfilter_order_recalculation()が、メタが正しく追跡されている状態においては複数回の再計算実行に対して冪等であることがテストまたは実機証跡で確認されていること。$_POST['change_taxrate']が期待外の値・欠落だった場合のフォールバック挙動が安全側（より保守的な分岐）に倒れていることを確認する。なお、メタ記録の書き込み経路（usces_action_reg_orderdataフック）が実際の受注作成フローで発火することの検証は別軸 order-meta-hook-coverage の担当とし、本軸では計算ロジック自体の正しさに焦点を当てる"
+    },
+    {
+      "id": "discount-composition-consistency",
+      "name": "割引合算方針の一貫性",
+      "perspective": "設計書の確定判断「既存割引との関係: 上書きせず加算」という原則が、usces_order_discountとusces_filter_order_discount_recalculationの2つのフックで異なる扱い（加算 vs 置き換え）になっていることの整合性が取れているか",
+      "criteria": "2つのフックで方針が異なる理由がdocs/design-notes.mdに明記され、それぞれの$discount引数の意味論の違い（毎回ゼロから計算 vs 現在表示値）に基づく合理的な説明になっていること。単なる場当たり的な修正ではなく、設計原則からの逸脱として自覚的に記録されているかを厳しく確認する"
+    },
+    {
+      "id": "calculator-purity",
+      "name": "計算コアの純粋性維持",
+      "perspective": "WCD_CalculatorおよびWCD_RuleがWordPress・Welcart関数に一切依存しない設計を維持できているか（PHPUnitがWordPress非起動で動く根拠）",
+      "criteria": "includes/class-wcd-calculator.php・includes/class-wcd-rule.phpの中にget_option/apply_filters/absint等のWordPress関数呼び出しが存在しないこと（ABSPATHガードのみ許容）。tests/unit配下のテストがbootstrap.phpのabsint()ポリフィルのみでWordPress本体なしに実行できることを実際に確認する"
+    },
+    {
+      "id": "settings-normalization-correctness",
+      "name": "WCD_Settings::normalize()の正確性",
+      "perspective": "設定値の正規化ロジック（absint整数化・0以下破棄・しきい値重複の後勝ち・昇順ソート）が仕様通り正確に実装されているか。特にabsint()適用順序に起因する符号判定の落とし穴が解消されているか",
+      "criteria": "負のしきい値・負の割引額を含む入力が正しく破棄されること（absint()を先に適用して符号を失っていないこと）をコードとテストの両方で確認する。テスト（test_discards_non_positive_rows等）が実際にこのケースをカバーし、PASSしていることを実行して確認する"
+    },
+    {
+      "id": "security-implementation",
+      "name": "セキュリティ実装の網羅性",
+      "perspective": "設定保存処理のnonce検証・権限チェック・入力サニタイズ、および出力時のエスケープが必須要件5を満たす形で網羅的に実装されているか",
+      "criteria": "check_admin_referer()が処理の最初に呼ばれていること、current_user_can()のcapability判定がメニュー登録・保存処理の両方で同一関数（get_capability()）を使い齟齬がないこと、$_POSTからの入力が最終的にabsint()でサニタイズされること、管理画面・カート画面への出力がesc_html/esc_attr/esc_url/esc_js等で漏れなくエスケープされていることをファイル全体を精査して確認する"
+    },
+    {
+      "id": "test-quality",
+      "name": "テストの網羅性とTDD遵守",
+      "perspective": "設計書の「テスト方針」表に挙げた8つの観点（しきい値未満／境界値／最上位1段のみ／ルール未設定／クランプ／未整列／不正入力除去／しきい値重複）がすべてテストされているか。実装がテストより先に書かれていないか（TDDの手順が守られたか）",
+      "criteria": "tests/unit配下の各テストファイルを設計書の観点表と突き合わせ、抜けがないこと。composer testを実際に実行し15 tests, 17 assertionsがすべてPASSすることを確認する。git logのコミット順序（テスト追加→実装追加）からTDDの手順が踏まれたことが読み取れること"
+    },
+    {
+      "id": "wpcs-compliance",
+      "name": "WPCS準拠と命名規約",
+      "perspective": "composer lintが違反ゼロであること、および関数・クラス・オプションキー・独自フックがwcd_/WCD_プレフィックスで統一されているか（PrefixAllGlobals）",
+      "criteria": "composer lintを実際に実行し違反0件であることを確認する。phpcs:ignoreコメントが使われている箇所（NonceVerification.Recommended等）について、無効化が正当な理由（読み取り専用表示、nonce検証済みの入力等）を伴っているか個別に精査し、セキュリティチェックを不当に迂回していないか確認する"
+    },
+    {
+      "id": "error-handling-robustness",
+      "name": "エラー処理・フェイルセーフの堅牢性",
+      "perspective": "設計書「エラー処理」節に挙げた4状況（Welcart無効／設定未登録／文字列置換失敗／割引額が小計超過）で、フロント購入導線を止めない実装になっているか",
+      "criteria": "class_exists('usc_e_shop')による無効時のフック登録見送り、normalize()が空配列でも例外を投げないこと、str_replaceが</tfoot>を見つけられない場合に元のHTMLをそのまま返すこと、WCD_Calculatorのmin()クランプが機能することをコードから確認する。いずれかの状況で致命的エラー（Fatal Error）が発生しうる経路がないか精査する"
+    },
+    {
+      "id": "extensibility-stage2",
+      "name": "第二段階拡張点の設計品質",
+      "perspective": "wcd_eligible_subtotal / wcd_available_rules の2つの独自フックが、第二段階（会員ランク・商品カテゴリ除外）の実装時にCalculator・Rule・Integration・既存テストを一切変更せずに済む設計になっているか",
+      "criteria": "2つのフックの適用箇所（WCD_Integration::calculate_amount()内）と適用順序が、将来の除外ロジック追加を妨げないことを確認する。Calculator自身がapply_filters()を呼んでいない（純粋性維持）ことも合わせて確認する"
+    },
+    {
+      "id": "i18n-completeness",
+      "name": "i18n対応の網羅性",
+      "perspective": "全ユーザー向け文字列にテキストドメイン'welcart-cart-discount'が通っており、.potファイルに抽出漏れがないか",
+      "criteria": "includes/配下およびプラグイン本体ファイル内の__()/_e()/esc_html__()等の呼び出しをgrepで洗い出し、languages/welcart-cart-discount.potのmsgid数と突き合わせて漏れがないことを確認する。ハードコードされた日本語文字列（テキストドメイン関数を通さないもの）が管理画面・カート画面の出力に残っていないか確認する"
+    },
+    {
+      "id": "documentation-honesty",
+      "name": "提出物ドキュメントの正直さ",
+      "perspective": "課題文が明記する評価方針（未完了・失敗を隠さず記録する方が高評価）に沿って、README・verification.mdが「動くはず」ではなく実際に確認できた事実と未確認事項を区別して記載しているか",
+      "criteria": "README.mdの動作確認環境表・verification.mdの各項目が、実際にDocker+Playwrightで検証された内容とdocs/screenshots/の実ファイルに裏付けられていること。未検証のバージョン・Dokployデプロイ等について誇張なく「未確認」と明記されていること。記載内容と実際のファイル（スクリーンショット等）の整合性を確認する。過去2周にわたり『実機で確認した』という記述が実際には裏付けを欠いていた指摘が繰り返された経緯を踏まえ、docs/design-notes.md・docs/ai-report.md・docs/verification.mdの『確認した』『検証した』という断定表現をすべて洗い出し、それぞれに対応する具体的な証跡（スクリーンショットのファイル名・DBクエリ結果・テスト実行結果のいずれか）が本当に存在するか、1件ずつ裏取りする。1件でも証跡なき断定が残っていれば不合格とする"
+    },
+    {
+      "id": "ai-report-quality",
+      "name": "AI活用レポートの具体性・検証可能性",
+      "perspective": "AI活用レポートが抽象的な自己評価ではなく、実際のコミットハッシュ・コード差分・発見の経緯を根拠に、AIの誤りとその発見・修正過程を具体的に記述しているか",
+      "criteria": "docs/ai-report.mdに記載された各エピソード（usces_filter_cart_table_footerの引数仕様誤り、absint()適用順序、受注再計算の二重計上バグ）について、対応するgit commitが実在し、内容が記述と一致することをgit showで検証する。「うまくいかなかったこと」の記載が実際に発生した具体的事象（Playwright合成クリックの問題等）に基づいているか確認する"
+    },
+    {
+      "id": "design-notes-quality",
+      "name": "設計メモの比較検討の質",
+      "perspective": "設計メモがフックの選定理由だけでなく、検討したが採用しなかった候補（累積適用・Settings API・$cart引数受け取り想定）との比較を、判断根拠を添えて記述しているか",
+      "criteria": "各不採用候補について「なぜ採用しなかったか」が課題文の要件・実機検証結果等の具体的根拠に基づいて説明されており、単なる好みの表明になっていないことを確認する"
+    },
+    {
+      "id": "git-history-quality",
+      "name": "コミット履歴の粒度と意図の伝達",
+      "perspective": "CLAUDE.mdの運用ルール「作業の区切りごとに意図の分かるメッセージで積む」通り、コミット履歴が判断の過程を示す資料として機能しているか",
+      "criteria": "git log --onelineを実際に確認し、1コミットにまとめられていないこと、各コミットメッセージから対応するタスク・変更内容が推測できること、バグ修正コミット（fix:）が機能追加コミット（feat:）と混在せず独立していることを確認する。並列生成に起因する複数タスクのコミットの時系列前後関係が不自然に破綻していないかも確認する"
+    },
+    {
+      "id": "evidence-authenticity",
+      "name": "動作確認証跡の実在性",
+      "perspective": "docs/verification.mdが参照するスクリーンショット・ログファイルが実際にリポジトリ内に存在し、内容が説明文と矛盾しないか",
+      "criteria": "docs/screenshots/配下の各ファイル（00〜24番台。3周目修正の再検証で追加された15〜24番も含む）が実在し、サイズが0バイトでないこと、docs/verification.md本文が参照するファイル名と実ファイル名が一致することを確認する。composer lint/testの出力テキストファイルの内容が、直接composer lint/testを再実行した結果と整合することを確認する。9・10節（3周目で追加）が実際に新規のフロント購入フローで発生した受注IDに対する検証であり、SQLでの状態書き換えではないことを、記述とスクリーンショット・DBクエリ結果から確認する。8-2節については引き続き『SQLでDBの状態を意図的に書き戻して』検証したものである旨が明記されているか確認する"
+    },
+    {
+      "id": "repo-hygiene",
+      "name": "リポジトリの衛生状態",
+      "perspective": "検証作業で生成された一時ファイル（Playwright MCPのログ・ページスナップショット等）が誤ってコミットされていないか、.gitignoreが適切に機能しているか",
+      "criteria": "git statusで未追跡ファイルを確認し、.playwright-mcp/等の検証専用生成物がgit管理対象に含まれていないことを確認する。vendor/・composer.lockの扱い（composer.lockはコミット対象、vendor/は対象外）が意図通りであることを確認する"
+    },
+    {
+      "id": "ci-docker-verifiability",
+      "name": "Docker/CI設定の検証度合い",
+      "perspective": ".gitlab-ci.ymlとdocker/docker-compose.ymlが、単なる構文チェックに留まらず実際に動作することが確認されているか",
+      "criteria": "docker-compose.ymlについては実際にコンテナが起動しWordPressが応答したことがタスク13・15の記録から確認できること。.gitlab-ci.ymlについてはYAML構文チェックのみに留まっているか、実際のGitLab Runner環境での実行確認が行われていないかを明確に区別し、後者であれば「未実行」である旨がドキュメントに正直に記載されているか確認する"
+    },
+    {
+      "id": "naming-collision-avoidance",
+      "name": "命名衝突回避の徹底",
+      "perspective": "Welcart本体の接頭辞usces_と衝突しない独自接頭辞（wcd_/WCD_）が、関数・クラス・オプションキー・独自フック・テキストドメインのすべてで一貫して使われているか",
+      "criteria": "grep -rn 'function usces_\\|class usces_\\|add_option.*usces_' 相当の検索でincludes/配下に衝突がないこと、独自フック名（wcd_eligible_subtotal, wcd_available_rules）・オプションキー（wcd_settings）・admin_postアクション名（admin_post_wcd_save_settings）・受注メタキー（wcd_injected_discount）がすべてwcd_プレフィックスを持つことを確認する"
+    },
+    {
+      "id": "order-meta-hook-coverage",
+      "name": "受注メタ書き込み経路の実検証",
+      "perspective": "2周目修正で追加された usces_action_reg_orderdata フック（WCD_Integration::record_injected_discount_on_order_registration()）が、実際の受注作成フロー（フロントでの購入確定）を通じて発火し、$usces->set_order_meta_value() により wp_usces_order_meta に自プラグインの注入額を正しく記録することが、シミュレーションではなく実機で確認されているか",
+      "criteria": "docs/verification.md・docs/ai-report.mdを精査し、『メタが正しく記録された状態』の検証がSQLによる直接のDB状態書き換え（成果物8-2節に記載の手法）のみで行われている場合、それはこのフック自体が実際に発火し正しい値を書き込むことの検証にはならない点を明確に指摘する。実際に新規のフロント購入フロー（カートに商品を入れて確定し、新しい受注IDが発行される一連の操作）を経て作成された受注に対して、DBを直接見て wp_usces_order_meta.wcd_injected_discount が自動的に正しい値で記録されていることを確認した実機証跡（スクリーンショットまたはDBクエリ結果）が存在しない限りACCEPTしない。存在しない場合は、そのギャップがドキュメント上に正直に開示されているかも合わせて確認し、開示されていなければ二重に不合格とする（未検証であること自体に加え、未検証であることを隠している点も指摘する）"
+    },
+    {
+      "id": "post-branching-security-review",
+      "name": "$_POST直接参照による分岐のセキュリティ妥当性",
+      "perspective": "filter_order_recalculation() 内で $_POST['change_taxrate'] をnonce検証なしに読み取り、計算ロジックの分岐に使っている実装が、セキュリティ上・堅牢性上妥当と言えるか",
+      "criteria": "この読み取りが金額の保存や権限の可否判定そのものには使われず、あくまで『どちらの計算式を適用するか』という読み取り専用の分岐に限定されていることをコードで確認する。sanitize_text_field()やwp_unslash()等、値そのものの安全な扱いが行われていることを確認する。$_POST['change_taxrate']が存在しない・想定外の値である場合のフォールバック（現在の実装ではelse分岐、すなわちメタによる差し戻し）が、誤って二重計上側に倒れるのではなく、より安全側に倒れていることを確認する。この設計判断（nonce検証を省略した理由）がコード内コメントまたはdocs/design-notes.mdに明記され、読み手が独自に妥当性を判断できる材料が揃っているかも確認する"
+    },
+    {
+      "id": "known-limitation-precision",
+      "name": "新規発見された既知の限界の開示精度",
+      "perspective": "2周目修正の実機再検証で新たに判明した『メタ未記録の既存受注に対する初回再計算で誤差が生じ、以降の再計算でもその誤差を引きずり続ける』という限界が、正確な数式・再現条件・回避手段とともに開示されているか",
+      "criteria": "docs/design-notes.mdおよびdocs/ai-report.mdの記述が、実際にdocs/verification.mdの8-1節で実機確認された挙動（-500が期待値のところ-1000と表示され、以降の再計算でもそのずれを引きずる）と数値的に整合していることを確認する。この限界が第二段階の課題として先送りされているのか、それとも第一段階の提出物として致命的な未解決課題として扱われるべきかについて、恣意的な過小評価がないか厳しく確認する。回避手段（管理者による手動修正）が実際に機能することの検証有無も確認する"
+    },
+    {
+      "id": "readme-limitation-prominence",
+      "name": "README における既知の限界の可視性",
+      "perspective": "3周目の実機再検証で『本修正より前に作成された受注に対しては、修正後最初の1回の再計算に限り誤った割引額が表示される』という限界が実機で確認された（-¥2,500という具体的な誤りまで再現）。これは既存のWelcart運用店舗に本プラグインを導入する場合に実際に発生しうる、運用上重要な既知の不具合である。この事実が、提出物のうち評価者・利用者が最初に目にするREADME.mdにも適切な粒度で記載されているか",
+      "criteria": "README.mdの必須要件チェックリストまたは動作確認環境節が『受注編集時の再計算についても整合を確認・不具合修正済み』のように、限界のない完全な解決であるかのように読める断定をしている場合、それを不合格とする。README.md単体を読んだ利用者が、既存受注のある本番Welcartストアに本プラグインを導入した場合に何が起こりうるか（初回再計算時に誤った割引額になりうること、および回避手段）を把握できる記載が必要。docs/design-notes.mdやdocs/ai-report.mdの奥深くにしか記載がなく、README.mdからそれらへの明示的な参照・要約すらない場合は、情報が実質的に埋もれていると判断し不合格とする"
+    },
+    {
+      "id": "internal-doc-link-integrity",
+      "name": "ドキュメント間リンクの整合性",
+      "perspective": "4周目修正でREADME.mdに追加された、docs/design-notes.mdの特定の見出しを指すアンカーリンク（例: docs/design-notes.md#受注再計算の既知の限界2周目修正で判明未解決）が、実際にその見出しへ正しく解決するか",
+      "criteria": "リンク先のファイルに、リンクのアンカー文字列が指し示すべき見出しが実在することを確認する。GitHub方式の見出しスラッグ変換規則（小文字化・全角括弧や中点等の記号除去・スペースをハイフンに変換、日本語の英数字以外の文字はそのまま保持）に従ってリンク先ファイルの実際の見出しからスラッグを手計算し、README.md内のリンク文字列と一致するか検証する。1文字でも食い違えばそのリンクは実際には機能しないため不合格とする。README.mdや他のドキュメントに同種のアンカー付き内部リンクが他にもあれば、それらも同様に検証する"
+    }
+  ]
+}
