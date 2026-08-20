@@ -1,0 +1,9 @@
+{
+  "name": "welcart-cart-discount-e2e",
+  "private": true,
+  "description": "Welcart Cart Discount の E2E テスト（docker/ の検証環境専用）",
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.0.0"
+  }
+}
