@@ -118,10 +118,20 @@ class WCD_Integration {
 		 * WCD_Exclusion に通知する。wcd_available_rules フィルタの引数は
 		 * ($rules, $cart) の2つのみで $order_id を含まないため、フィルタ契約を
 		 * 変えずに文脈を受け渡す手段として静的プロパティを用いる。
+		 *
+		 * calculate_amount() の内部では wcd_eligible_subtotal / wcd_available_rules
+		 * という、他プラグインも購読しうる公開フィルタを呼び出している。これらの
+		 * コールバックが例外を送出した場合でも end_order_recalculation() を確実に
+		 * 呼び、静的プロパティが残留したまま以降のランク解決に影響しないよう
+		 * try/finally で保護する。
 		 */
 		WCD_Exclusion::begin_order_recalculation( $order_id );
-		$amount = self::calculate_amount( $cart );
-		WCD_Exclusion::end_order_recalculation();
+
+		try {
+			$amount = self::calculate_amount( $cart );
+		} finally {
+			WCD_Exclusion::end_order_recalculation();
+		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- 保存可否の判断には使わず、$discount の由来（通常再計算か軽減税率変更か）を判別する読み取り専用の分岐にのみ使用する。nonce検証・権限チェックはWelcart自身の管理画面ハンドラ（item_post.php）側で完結している。
 		$change_taxrate = isset( $_POST['change_taxrate'] ) ? sanitize_text_field( wp_unslash( $_POST['change_taxrate'] ) ) : '';
