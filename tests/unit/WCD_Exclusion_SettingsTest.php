@@ -74,4 +74,22 @@ class WCD_Exclusion_SettingsTest extends TestCase {
 			$result
 		);
 	}
+
+	public function test_rank_zero_is_preserved_when_in_known_ranks() {
+		$result = WCD_Exclusion_Settings::normalize(
+			array( 'ranks' => array( 0 ) ),
+			array( 0, 1, 2, 99 )
+		);
+
+		$this->assertSame( array( 0 ), $result['ranks'] );
+	}
+
+	public function test_rank_zero_is_discarded_when_not_in_known_ranks() {
+		$result = WCD_Exclusion_Settings::normalize(
+			array( 'ranks' => array( 0 ) ),
+			array( 1, 2, 3, 4 )
+		);
+
+		$this->assertSame( array(), $result['ranks'] );
+	}
 }
