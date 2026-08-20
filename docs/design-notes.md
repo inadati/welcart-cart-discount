@@ -351,14 +351,23 @@ evaluator の REJECT（2周目、`rank-resolution-context-correctness` 軸）は
 判定を **`absint()` 適用前の生値**に対して行う形にした（`includes/class-wcd-exclusion-settings.php`）。
 第一段階のコメント規約を踏襲し、同じ理由をコード内コメントとして残している。
 
-### 単体テスト件数: 実装計画の想定（32件）と実際（44件）の乖離
+### 単体テスト件数: 実装計画の想定（32件）と実際（44件→2周目修正で46件）の乖離
 
 実装計画は「既存15件 + 新規17件 = 32件」を想定していたが、実際には既存テストは
 27件（第一段階の完了後に `WCD_Cart_Row_BuilderTest`（11件）が追加されており、
 計画作成時点で参照した「15件」という数字はその追加前の値だった）あり、新規17件
 （`WCD_Exclusion_CalculatorTest` 10件 + `WCD_Exclusion_SettingsTest` 7件）と合わせて
-実際の合計は **44件**である。計画書の想定件数はチェックリストの目安として書かれた
-ものであり、実装・レビューの判断には実測件数（`composer test` の出力）を優先した。
+実装当初の合計は **44件**であった。計画書の想定件数はチェックリストの目安として
+書かれたものであり、実装・レビューの判断には実測件数（`composer test` の出力）を
+優先した。
+
+その後、2周目修正（`test-coverage-quality` 軸のevaluator REJECTを受けた対応、
+コミット `38a9ae6`）で、会員ランク `0` の境界値を検証する回帰テスト2件
+（`test_rank_zero_is_preserved_when_in_known_ranks` /
+`test_rank_zero_is_discarded_when_not_in_known_ranks`）を追加した。これにより
+**現在の実際の合計は46件**である（`vendor/bin/phpunit` 実測: 46 tests, 53
+assertions）。この44件から46件への増加の経緯は `docs/ai-report.md`「AIの出力が
+誤っていた箇所」11、`docs/verification.md` 18節でも同じ数値で追跡・記録している。
 
 ### 並行 generator 間のコミット競合とその復旧
 
