@@ -26,3 +26,4 @@ require_once __DIR__ . '/../includes/class-wcd-rule.php';
 require_once __DIR__ . '/../includes/class-wcd-cart-row-builder.php';
 require_once __DIR__ . '/../includes/class-wcd-calculator.php';
 require_once __DIR__ . '/../includes/class-wcd-settings.php';
+require_once __DIR__ . '/../includes/class-wcd-exclusion-calculator.php';
