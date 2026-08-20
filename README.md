@@ -83,6 +83,13 @@ PHP 8 系で生成されており開発依存（`doctrine/instantiator` 2.0、
 - [x] 特定の会員ランクや商品カテゴリを除外する条件設定
       （`Welcart Shop > 自動割引設定` の「除外条件」セクション。設計は
       `docs/design-notes.md`「第二段階: 除外条件設定」を参照）
+- [x] i18n 対応（全ユーザー向け文字列を `__()` / `esc_html__()` 経由にし、
+      `class-wcd-plugin.php` で `load_plugin_textdomain()` を実行。翻訳テンプレートは
+      `languages/welcart-cart-discount.pot`。なお Welcart 本体がフロント側のロケールを
+      上書きする挙動については「Welcart の既定値についての補足」を参照）
+- [x] テストコード（WordPress 非依存の単体テスト **46 tests, 53 assertions**（`composer test`）と、
+      実ブラウザで3箇所整合まで検証する E2E **11件**（`composer e2e`）。
+      実行ログは `docs/verification.md`「20. 提出直前の最終確認」）
 
 ## 制限事項
 
@@ -238,7 +245,8 @@ composer e2e:reset   # 割引設定（wcd_settings / wcd_exclusions）だけを�
 composer e2e:down    # 検証環境をボリュームごと破棄する（次回の e2e:up はまっさらから再構築）
 ```
 
-4つの spec（`e2e/tests/`）・計11件がすべて PASS することを確認済み。
+4つの spec（`e2e/tests/`）・計11件がすべて PASS することを確認済み
+（実行ログ: [`docs/screenshots/47-e2e-full-run.txt`](docs/screenshots/47-e2e-full-run.txt)）。
 
 - `01-cart-display.spec.ts` — カート画面の割引表示（しきい値未満・1段目到達・2段目への切り替え）
 - `02-checkout-consistency.spec.ts` — カート・購入確認・受注データの3箇所整合、
