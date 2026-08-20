@@ -889,6 +889,55 @@ cd e2e && npx playwright test tests/01-cart-display.spec.ts tests/02-checkout-co
 気づいて修正した不具合である。両者を区別して記録することで、「実測プロセスを踏んでも
 なお発生しうる誤り」が存在することを正直に示す。
 
+### 22. 隔離環境での冪等性検証によって発見した商品URLの投稿ID直値依存（2周目修正）
+
+項目21が「意図的に壊して落とす」検証であるのに対し、本項目は**タスク10「全体通しの確認」
+そのものをやり直す過程**で発見した別種の欠陥であり、項目14（1周目時点で発見した「トップ
+ページの商品一覧に全商品が出ない」問題）とも異なる、2周目で新たに見つかった事実である。
+
+**発見の経緯**: evaluator の REJECT（`entrypoint-and-idempotent-provisioning` 軸）を受け、
+タスク10ステップ1が本来求める「`composer e2e:down` でまっさらな状態から再構築する」検証の
+代替として、既存の共有検証環境（`docker-wordpress-1` 等、`docs/verification.md` 記録済みの
+再現不能な受注データを保持している）を一切破壊せずに済む**隔離 Docker Compose 環境**
+（`COMPOSE_PROJECT_NAME=wcd-e2e-freshcheck WP_PORT=8099`）を新規構築した。この隔離環境に
+対してまっさらな状態から `e2e/bin/env-up.sh` を実行し、環境構築ロジック自体は健全である
+ことを実機で確認できた。続けて `WP_PORT=8099 npx playwright test` を実行したところ、
+管理画面 UI のみで完結する `04-admin-settings.spec.ts`（2件）は PASS した一方、商品を
+カートに入れる `01-cart-display.spec.ts` / `02-checkout-consistency.spec.ts` /
+`03-category-exclusion.spec.ts`（合計9件）はいずれも `addToCart()` の1回目の呼び出しで
+失敗した。
+
+**原因**: `e2e/helpers/shop.ts` の `ITEMS` が商品ページ URL を `/?p=181` のような
+**投稿IDの直値**で保持しており、この値は共有環境（`docker-wordpress-1`）で実測した値に
+過ぎなかった。隔離環境で同じ商品名の実際の投稿IDを確認すると、Practice Pad Set=78 /
+Compact Tuner Pedal=40 / OD-1 Overdrive=36 / Maple Snare 14inch=46 であり、共有環境の値
+（181 / 171 / 167 / 177）とはまったく一致しなかった。WordPress の投稿IDはインストール
+ごとの投稿作成順・件数に依存する自動採番であり、真にまっさらな環境では共有環境と同じ値に
+なる保証がない。
+
+**なぜAIの誤りと言えるか**: 実装計画・過去の実装（項目14で商品ページURLを投稿ID直値で
+`ITEMS` に持たせる設計にした時点を含む）は、いずれも「今稼働中の共有環境で動けばよい」
+という暗黙の前提でこの値をハードコードしており、設計書・`docs/design-notes.md` が明記する
+「まっさらな状態からでも1コマンドで通る」という中核目標を、実際には満たしていなかった。
+この矛盾はコードレビューだけでは気づけず、隔離環境での実機検証によって初めて発見できた。
+
+**修正内容**: `e2e/helpers/wpcli.ts` に `getItemPostId(name)` / `getItemUrl(name)` を
+追加し、商品名から投稿IDを動的に解決する方式に変更した。`wp post list --title=...
+--post_mime_type=item` は項目12・項目20と同じ理由（Welcart側の `pre_get_posts` フックの
+影響で `WP_Query` 経由のフィルタが機能しない）で使えないため、`getCategoryId()`
+（`wp term list`）と同じパターンは踏襲できず、`$wpdb->prepare()` を使う `wp eval` 経由で
+`{$wpdb->posts}` を直接問い合わせる方式にした。`e2e/helpers/shop.ts` の `ITEMS` からは
+`url`（投稿ID直値）フィールドを削除し、`addToCart()` 内で商品名ごとに `itemUrlCache`
+（プロセス内 `Map`）にキャッシュしつつ都度 `getItemUrl()` で解決する設計に変更した
+（呼び出しのたびに WP-CLI を叩く速度低下を避けるため）。
+
+**修正後の確認結果**: 共有検証環境（`docker-wordpress-1`）に対して `cd e2e && npx
+playwright test` を実行し、既存4 spec・11件が全件 PASS することを確認した（動的解決に
+変えても共有環境の商品名・投稿IDの対応関係自体は変わらないため、以前と同じ結果になる）。
+隔離環境は検証終了後 `docker compose -p wcd-e2e-freshcheck -f docker/docker-compose.yml
+down -v` で完全に破棄し、共有環境の受注件数・コンテナ作成時刻に影響がないことも確認した。
+詳細な実測値・コマンド出力は `docs/design-notes.md`（460〜538行付近）に記録している。
+
 ## うまくいかなかったこと・時間を要したこと（E2E、追記）
 
 ### 商品在庫の枯渇による他specへの副作用（設計上の盲点）
