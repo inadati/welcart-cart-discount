@@ -208,7 +208,7 @@ TDDで担保している。<strong>absint() を先に適用すると符号情報
 <p><strong>発見の経緯</strong>: Docker + Playwright で「カート30,000円→受注確定（割引¥2,000）→
 管理画面で受注の数量を変更して¥12,000相当にし、『再計算』ボタンを押す」という
 実装計画タスク15ステップ8の手順を実行したところ、期待値は¥500引き（12,000円は
-10,000円以上30,000円未満の段）だったが、実際の表示は**¥2,500引き**だった。</p>
+10,000円以上30,000円未満の段）だったが、実際の表示は<strong>¥2,500引き</strong>だった。</p>
 <p><strong>原因調査</strong>: <code>usces_filter_order_discount_recalculation</code> フィルタの <code>$discount</code>
 引数を、実装は <code>usces_order_discount</code> と同じ「既存の割引額から減算」ロジック
 （<code>return $discount - self::calculate_amount( $cart );</code>）で扱っていた。
