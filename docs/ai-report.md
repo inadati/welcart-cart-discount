@@ -4,7 +4,7 @@
 
 - **Claude Code**（本レポート作成時点のモデル: Claude Sonnet 5）を、設計から実装・検証・
   ドキュメント作成まで一貫して使用した。
-- 開発フローは chot-harness（設計→計画→並列生成→評価のループを回す社内ハーネス）を用い、
+- 開発フローは chot-harness（設計→計画→並列生成→評価のループを回す自作の並列開発ハーネス）を用い、
   以下の段階を踏んだ。
   1. **brainstorming**: 課題文の要件・評価基準を踏まえた対話を通じて設計方針を固め、
      `.nipper/chot/specs/2026-08-18-welcart-cart-discount-design.md` を作成。
