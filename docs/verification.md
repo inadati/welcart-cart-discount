@@ -281,6 +281,202 @@ amount_n`、`amount_before_fix = 500` が毎回加算され続けるため
 - `phpunit --bootstrap tests/bootstrap.php tests/unit`: 16 tests, 18 assertions, OK
 - `phpcs --standard=phpcs.xml.dist`: 7 / 7 完了、違反0件
 
+---
+
+# 第二段階: 除外条件設定（会員ランク・商品カテゴリ）の実機検証
+
+設計書 `.nipper/chot/specs/2026-08-20-welcart-cart-discount-exclusions-design.md`
+「テスト方針／実機検証」の6項目を、実装計画タスク13の手順に沿って実際に操作して確認した。
+環境は第一段階と同一（Docker: WordPress 6.6.2 / PHP 8.2.25 / Welcart 2.12.1.2608181）。
+検証用商品は既存の25点（`docker/seed-items.php`）とテスト商品2点（TEST-40000 / TEST-3000）
+をそのまま使用し、新規投入は行っていない。
+
+## 検証環境の最新化にあたって発見・修正した問題（プラグインのバグではない）
+
+`docker compose up -d --build` → `./docker/setup.sh` を実行したところ、テーマ有効化の手順
+（`wp theme activate welcart-shop-theme`）が「スタイルシートが見つかりません。」で失敗した。
+調査したところ、名前付きボリューム `docker_wp_data` 内の
+`wp-content/themes/welcart-shop-theme` ディレクトリが空（ディレクトリ自体は存在するが
+中身のファイルが無い）になっていた。原因は、過去に `docker/compose.dev.yml`
+（テーマ編集用の bind mount 追加設定）を使った検証セッションが残っており、
+そのときの `docker-wpcli-1` コンテナ（39時間起動したまま）だけがホスト側の
+`docker/theme/welcart-shop-theme` を bind mount していて、本来の名前付きボリューム側には
+中身が反映されていなかったと推測される。**これはプラグイン本体のコードとは無関係な、
+検証環境（Docker ボリューム）側の状態異常**であり、`docker/Dockerfile` や
+`docker/setup.sh` 自体の不具合ではない。
+
+一時的な `alpine` コンテナで名前付きボリュームにホスト側のテーマファイルを
+コピーして復旧し（`docker run --rm -v docker_wp_data:/target -v $(pwd)/docker/theme/welcart-shop-theme:/source:ro alpine sh -c "cp -a /source/. /target/wp-content/themes/welcart-shop-theme/"`）、
+その後 `./docker/setup.sh` を再実行して正常終了することを確認した。既存の商品25点・
+割引ルール2段（10,000円以上-500円／30,000円以上-2,000円）はいずれも維持されていた。
+
+## 検証用データ
+
+- 商品カテゴリ: `docker/seed-items.php` が投入する25商品は5カテゴリ
+  （ギター/ベース/アンプ/エフェクター/ドラム、各5点）に分類済み
+- 会員ランク（`usces_customer_status`）: 通常会員(0) / 優良会員(1) / VIP会員(2) / 不良会員(99)
+- 除外条件設定画面から追加された擬似ランク: 未ログイン（非会員）
+
+## 11. 除外カテゴリの動作確認（部分除外・3箇所整合）
+
+`Welcart Shop > 自動割引設定` の除外条件セクションで、商品カテゴリ「エフェクター」に
+チェックを入れて保存した。
+
+[`docs/screenshots/25-exclusion-category-settings.png`](screenshots/25-exclusion-category-settings.png)
+
+保存後、DB（`wp_options.wcd_exclusions`）が
+`a:2:{s:5:"ranks";a:0:{}s:10:"categories";a:1:{i:0;i:9;}}`
+（`9` はエフェクターの term_id）となっていることを直接クエリして確認した。
+
+非除外カテゴリの商品2点（Practice Pad Set ¥7,500・ドラム／Solid State Practice 10W
+¥9,800・アンプ、合計¥17,300）と、除外カテゴリの商品（Multi Effects Processor
+¥32,000・エフェクター）をゲスト（非会員）としてカートに入れたところ、
+カート表は「商品合計 ¥49,300」「自動割引 -¥500」「割引後合計 ¥48,800」と表示された。
+除外カテゴリ商品分（¥32,000）を含めた生の商品合計は¥49,300（本来なら30,000円以上の
+段に該当し-¥2,000のはず）だが、しきい値判定に使われる小計は非除外分の¥17,300のみで
+あるため、10,000円以上30,000円未満の段（-¥500）が適用されていることを確認した。
+
+[`docs/screenshots/26-exclusion-category-cart.png`](screenshots/26-exclusion-category-cart.png)
+
+続けて2点目の除外カテゴリ商品（Digital Delay DL-2 ¥15,200・エフェクター）を追加すると、
+商品合計は¥64,500に増えたが、自動割引は**-¥500のまま変化しなかった**。これにより、
+除外カテゴリ商品をいくら追加しても判定小計（¥17,300固定）に影響しないこと（部分除外の
+性質）を確認した。
+
+[`docs/screenshots/27-exclusion-category-cart-add-more-excluded.png`](screenshots/27-exclusion-category-cart-add-more-excluded.png)
+
+購入手続きを進めた購入確認画面でも「商品合計 ¥64,500」「キャンペーン割引 ¥-500」
+「総合計金額 ¥64,000」とカート画面と完全に一致することを確認した。
+
+[`docs/screenshots/28-exclusion-category-confirmation.png`](screenshots/28-exclusion-category-confirmation.png)
+
+ゲストとして注文を確定し、受注ID 1008 が発行された。管理画面の受注データ編集画面でも
+「商品合計 64,500」「キャンペーン割引 -500」「総合計金額 64,000」と表示され、
+DBを直接クエリしても `wp_usces_order`（ID=1008）が
+`order_item_total_price = 64500.00` / `order_discount = -500.00` として保存されている
+ことを確認した。これにより、除外カテゴリ設定時も**カート画面・購入確認画面・受注データの
+3箇所で割引額（¥500）が完全に一致する**ことを実機で確認した。
+
+[`docs/screenshots/29-exclusion-category-order-detail.png`](screenshots/29-exclusion-category-order-detail.png)
+
+## 12. 除外ランク（会員）の動作確認
+
+除外条件設定で、商品カテゴリの「エフェクター」を外し、会員ランクの「不良会員」に
+チェックを入れて保存した（DB: `ranks` に `99` が追加されたことを確認）。
+
+[`docs/screenshots/30-exclusion-rank-settings.png`](screenshots/30-exclusion-rank-settings.png)
+
+検証用会員が存在しなかったため、`Welcart Management > 新規会員登録`
+（管理画面のブラウザ操作）から検証用会員を作成した
+（メール `badmember@example.com`、ランク「不良会員」を選択）。作成後、DBで
+`wp_usces_member`（ID=1001）の `mem_status = 99` を確認した。
+
+[`docs/screenshots/31-exclusion-rank-testmember-created.png`](screenshots/31-exclusion-rank-testmember-created.png)
+
+フロント（会員ログイン画面）からこの会員としてログインし、しきい値（30,000円）を
+大きく超える商品（Bass Combo 100W ¥62,000）をカートに入れたところ、カート表には
+「商品合計 ¥62,000」のみが表示され、**自動割引の行自体が表示されなかった**
+（除外対象ランクのため `wcd_available_rules` フィルタが空配列を返し、
+割引ルールが無効化されている）。
+
+[`docs/screenshots/32-exclusion-rank-cart-no-discount.png`](screenshots/32-exclusion-rank-cart-no-discount.png)
+
+購入確認画面でも「商品合計 ¥62,000」「総合計金額 ¥62,000」のみでキャンペーン割引の
+行が無いことを確認し、そのまま注文を確定した（受注ID 1009）。DBを直接クエリし、
+`wp_usces_order`（ID=1009）が `order_item_total_price = 62000.00` /
+`order_discount = 0.00` / `mem_id = 1001` として保存されていること、会員ページの
+購入履歴にも「購入金額 ¥62,000」「値引き ¥0」と表示されることを確認した。
+
+[`docs/screenshots/33-exclusion-rank-confirmation-no-discount.png`](screenshots/33-exclusion-rank-confirmation-no-discount.png)
+
+## 13. 除外ランク（ゲスト）の動作確認
+
+除外条件設定で「未ログイン（非会員）」に追加でチェックを入れて保存した
+（「不良会員」はステップ14で使うため残したまま。DB:
+`ranks: ["guest", 99]`）。
+
+[`docs/screenshots/34-exclusion-guest-settings.png`](screenshots/34-exclusion-guest-settings.png)
+
+フロント側の会員セッションからログアウトし、未ログイン状態でしきい値を超える商品
+（Deep Black PB Bass ¥68,000）をカートに入れたところ、「商品合計 ¥68,000」のみが
+表示され、自動割引の行は表示されなかった。ゲスト除外の設定が正しく効いていることを
+確認した。
+
+[`docs/screenshots/35-exclusion-guest-cart-no-discount.png`](screenshots/35-exclusion-guest-cart-no-discount.png)
+
+## 14. 受注編集の再計算での持ち主ランク解決の確認
+
+ステップ12で確定した受注（ID 1009、持ち主は不良会員の badmember@example.com、
+mem_id=1001）を、除外対象ではない管理者アカウント（`admin`、Welcart会員としては
+未登録＝このアカウント自身のセッションは非会員扱い）で管理画面の受注編集画面から開き、
+数量を1→2（¥62,000→¥124,000）に変更して「Recalculation」を押した。
+
+管理者自身のセッションは非会員（除外対象の「未ログイン」）であり、除外条件設定を
+そのままセッションから判定すればどのみち除外されてしまうため、この検証だけでは
+「持ち主のランクで判定されているか」「操作者のセッションで判定されているか」を
+区別できない。そこで、ステップ14実施時点の除外設定は「不良会員」と「未ログイン」の
+**両方**をチェックした状態にしてあり、次のステップ15で「不良会員」設定を外した状態の
+対照実験を行うことで、表示された割引額が本当に「受注の持ち主（不良会員）」の判定に
+由来するのか、それとも別の理由（バグ等）でたまたま割引が出ていないだけなのかを
+切り分けた。
+
+再計算の結果、「商品合計 124,000」「キャンペーン割引 0」「総合計金額 124,000」と
+表示され、金額(¥124,000)はしきい値(30,000円)を大きく超えているにもかかわらず
+割引が適用されないことを確認した。
+
+[`docs/screenshots/36-exclusion-order-recalc-owner-rank.png`](screenshots/36-exclusion-order-recalc-owner-rank.png)
+
+## 15. 対照実験: 除外設定を外した状態での同一受注の再計算（設計意図の裏付け）
+
+上記の結果が本当に「受注の持ち主（不良会員）」のランク判定によるものかを確認するため、
+除外条件設定から「不良会員」のチェックを外し（「未ログイン」は残したまま）保存した。
+ページを再読み込みすると数量は未保存のためDB上の値（1・¥62,000）に戻っていたが、
+そのまま数量を変更せず「Recalculation」を押したところ、今度は「キャンペーン割引 -2000」
+「総合計金額 60,000」と、正しく30,000円以上の段の割引が適用された。
+
+[`docs/screenshots/37-exclusion-order-recalc-control-no-exclusion.png`](screenshots/37-exclusion-order-recalc-control-no-exclusion.png)
+
+この対照実験により、ステップ14で割引が出なかったのは操作者（管理者）のセッション状態や
+偶然の不具合によるものではなく、**除外設定に「不良会員」が含まれているかどうかに正確に
+連動して**、受注の持ち主（badmember、不良会員）のランクで判定が行われていることを
+実機で確認できた。設計書の「経路2: 受注編集画面の再計算」節が意図した、
+`WCD_Integration::filter_order_recalculation()` 実行中だけ対象受注IDを `WCD_Exclusion`
+へ通知し、セッションではなく受注の持ち主のランクを解決する実装が、意図どおりに
+機能していることの裏付けとなった。
+
+## 16. 後方互換の確認
+
+除外条件設定（会員ランク・商品カテゴリ）をすべて空にして保存した。DBで
+`wp_options.wcd_exclusions` が
+`a:2:{s:5:"ranks";a:0:{}s:10:"categories";a:0:{}}`（両方とも空配列）であることを
+確認した。
+
+[`docs/screenshots/38-exclusion-empty-settings-backward-compat.png`](screenshots/38-exclusion-empty-settings-backward-compat.png)
+
+第一段階の検証で使用したテスト商品（検証用商品3000円／TEST-3000／¥3,000）を数量4
+（合計¥12,000）でカートに入れたところ、「商品合計 ¥12,000」「自動割引 -¥500」
+「割引後合計 ¥11,500」と表示され、これは本ドキュメント冒頭「3. しきい値到達後の
+カート画面（割引行の表示）」に記録した第一段階の結果と**完全に同一の数値**であった。
+除外条件を導入する前（第一段階）と、除外条件をすべて空にした状態（第二段階）とで
+挙動に差が無いことを実機で確認した。
+
+[`docs/screenshots/39-backward-compat-cart-matches-stage1.png`](screenshots/39-backward-compat-cart-matches-stage1.png)
+
+## 17. `composer test` / `composer lint` の最終確認
+
+上記すべての実機検証を終えた最終状態のコードに対し、Docker コンテナ内
+（`docker exec docker-wordpress-1`、bind mount 済みの `vendor/bin/phpunit` /
+`vendor/bin/phpcs` を使用）で再実行した。
+
+- `vendor/bin/phpunit --bootstrap tests/bootstrap.php tests/unit`: **44 tests, 51
+  assertions, OK**（第一段階の16件 + 除外機能のユニットテスト28件）
+- `vendor/bin/phpcs --standard=phpcs.xml.dist`: 11 / 11 完了、**違反0件**
+
+以上により、設計書「テスト方針／実機検証」の6項目（除外カテゴリの3箇所整合・部分除外、
+除外ランク（会員）、除外ランク（ゲスト）、受注編集再計算での持ち主ランク解決、
+後方互換）をすべて実機で確認した。加えて、当初計画になかった対照実験（ステップ15）を
+追加で行い、「持ち主のランクで判定されている」という主張を裏付けとして補強した。
+
 ## その他の記録（参考）
 
 - Welcart Shop・本プラグインの有効化直後のプラグイン一覧:
