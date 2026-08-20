@@ -183,6 +183,11 @@ class WCD_Admin {
 
 		WCD_Settings::save_rules( $raw );
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce は上の check_admin_referer() で検証済み。値のサニタイズは WCD_Exclusion_Settings::normalize() 内の absint() で行う。
+		$raw_exclusions = isset( $_POST['wcd_exclusions'] ) && is_array( $_POST['wcd_exclusions'] ) ? wp_unslash( $_POST['wcd_exclusions'] ) : array();
+
+		WCD_Exclusion_Settings::save( $raw_exclusions );
+
 		wp_safe_redirect(
 			add_query_arg(
 				array(
