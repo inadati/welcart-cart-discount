@@ -704,6 +704,182 @@ WP-CLIで生成したnonce（`wp_create_nonce()`）はログインセッショ�
 検証環境では `wp db query` がTLS/SSLエラーで失敗する。DB直接問い合わせが必要な箇所
 （受注ID取得など）はすべて `wp eval` 経由で `$wpdb` を使う方式に統一した。
 
+### 21. 意図的な失敗確認（空振り検知）の実施記録（2周目修正）
+
+evaluator の REJECT（`idempotency-verification-integrity` 軸・`intentional-failure-checks` 軸・
+`plan-compliance` 軸）を受けて、実装計画タスク4ステップ5・タスク7ステップ3が要求する
+「意図的に条件を壊してテストが空振りしないことを確認する」検証を、稼働中の Docker
+検証環境（`http://localhost:8080`）に対して実際に自分の手で再実施した。evaluator の
+指摘は、検証自体は evaluator が代わりに実施して健全性を確認済みだが、**提出物のどこにも
+実施記録が残っておらず第三者が確認できない**という点だった。以下はその再実施の記録であり、
+実行したコマンドと実際の出力をそのまま残す。
+
+#### タスク4ステップ5: `wcd_settings` を無効化して `01-cart-display.spec.ts` を落とす
+
+計画書どおりにまず以下を実行した。
+
+```bash
+docker compose -f docker/docker-compose.yml run --rm -T wpcli wp --path=/var/www/html \
+  option update wcd_settings '[]' --format=json
+cd e2e && npx playwright test tests/01-cart-display.spec.ts
+```
+
+結果は **3件とも PASS**した。計画書が想定する「割引行が出なくなり FAIL する」にはならず、
+一見すると空振りを起こしているように見えた。原因を調べたところ、`01-cart-display.spec.ts`
+自身の `test.beforeAll`（`e2e/tests/01-cart-display.spec.ts:15-18`）が
+
+```typescript
+test.beforeAll(async ({ browser }) => {
+  resetToKnownState()
+  page = await browser.newPage()
+})
+```
+
+という形で `resetToKnownState()` を呼んでおり、これがテスト本体の実行前に
+`wcd_settings` を既知の2段ルールへ**上書きして戻してしまう**ため、外部から
+`wp option update` で壊した値はテストが実際に検証を始める時点ではすでに元に戻っていた
+（`option get wcd_settings` で確認すると2段ルールのままだった）。
+
+これは実装計画が書かれた時点（タスク4ステップ3で `beforeAll` に `resetToKnownState()` を
+入れる設計にした）と、タスク4ステップ5が想定する「外部から option を壊せばテスト実行中も
+壊れたままのはず」という前提が、計画内部で矛盾していたことを意味する。calling
+`resetToKnownState()` in `beforeAll` は「他 spec の状態を持ち越さない」という別の目的で
+必要な設計であり、削除すべきものではない。そこで、この意図的な失敗確認の**間だけ**
+`beforeAll` 内の `resetToKnownState()` 呼び出しを一時的にコメントアウトし
+（`e2e/tests/01-cart-display.spec.ts` を一時改変、コミットしない）、その状態で
+`wcd_settings` を `[]` にしてから再実行した。
+
+```bash
+docker compose -f docker/docker-compose.yml run --rm -T wpcli wp --path=/var/www/html \
+  option update wcd_settings '[]' --format=json
+cd e2e && npx playwright test tests/01-cart-display.spec.ts
+```
+
+結果:
+
+```
+✓  1 しきい値未満では割引行が出ない (886ms)
+✘  2 1段目に到達すると -500 と割引後合計が出る (729ms)
+   Error: expect(received).toBe(expected)
+   Expected: 500
+   Received: null
+-  3 2段目に到達すると -2000 に切り替わり、累積しない（did not run）
+1 failed, 1 did not run, 1 passed
+```
+
+1件目（しきい値未満）は割引ルールの有無にかかわらずそもそも割引が出ない条件のため
+PASS のままなのが正しい。2件目（1段目）は割引額 `500` を期待して `null`
+（割引行そのものが存在しない）を受け取り FAIL、3件目は `test.describe.configure({ mode:
+'serial' })` により直前のテストが失敗した時点で以降が実行されない（`did not run`）。
+計画書は「1段目・2段目のテストが FAIL する」と書いていたが、serial モードの仕様上
+2件目は明示的な FAIL、3件目は「未実行」という形で現れる。いずれにせよ、割引が機能しない
+状態でテストがそのまま PASS してしまう空振りは起きないことを確認できた。
+
+確認後、`git checkout e2e/tests/01-cart-display.spec.ts` で一時改変を取り消し、
+`./e2e/bin/env-reset.sh` で `wcd_settings` を既知の状態に戻した上で再実行し、
+3件とも PASS することを確認した。
+
+#### タスク7ステップ3: 差し戻しロジックを単純加算に書き換えて `02-checkout-consistency.spec.ts` を落とす
+
+`includes/class-wcd-integration.php` の `filter_order_recalculation()` を実際に読み、
+二重計上を防ぐ差し戻しロジックが（計画書が想定していた144-150行付近から行番号が
+ずれておらず）現物でも144-150行の `else` 節にあることを確認した。
+
+```php
+} else {
+    // この経路の $discount には前回本プラグインが注入した割引額が
+    // 含まれている. その既知の値だけを差し戻し、他の割引成分を復元する.
+    $previous_injected = self::get_injected_discount( $order_id );
+    $other_components  = $discount + $previous_injected;
+    $new_discount      = $other_components - $amount;
+}
+```
+
+これを一時的に単純加算へ書き換えた（コミットしない）。
+
+```php
+} else {
+    // TEMP(意図的な失敗確認用、コミットしない): 前回注入額を差し戻さない
+    // 単純加算に書き換え、二重計上を検出できることを確認する。
+    $new_discount = $discount - $amount;
+}
+```
+
+実行:
+
+```bash
+cd e2e && npx playwright test tests/02-checkout-consistency.spec.ts
+```
+
+結果:
+
+```
+✓  1 カート画面と購入確認画面で割引額が一致し、購入を完了できる (5.1s)
+✓  2 確定後の受注データにも同じ割引額が記録されている (1.7s)
+✘  3 再計算を3回繰り返しても割引額が変動しない（二重計上の非再発） (1.1s)
+   Error: 1 回目の再計算後
+   expect(received).toBe(expected)
+   Expected: 500
+   Received: 1000
+1 failed, 2 passed
+```
+
+計画書が想定した通り、1・2件目（カート・確認画面・受注データの3箇所整合）は割引の
+初回注入ロジック自体には手を入れていないため PASS のまま、3件目（再計算のべき等性）は
+1回目の再計算後に `500` ではなく `1000` を検出して期待通り FAIL した。これは
+「前回注入額 -500 を差し戻さずに新しい割引額 -500 をさらに加算した結果、
+-500 → -1,000 と二重計上される」という、このプラグイン最大のリスク領域（Welcart の
+受注編集フォームが送信する `$discount` に前回保存値が含まれるという非直感的な仕様に
+起因する不具合。詳細は本レポート「AIの出力が誤っていた箇所」3・4）を、E2Eが正しく
+検知できることを直接示す結果である。
+
+確認後、`git checkout includes/class-wcd-integration.php` で一時改変を取り消し、
+`git status --short` で差分が無いことを確認した。
+
+#### 元に戻した後の全件 PASS 確認
+
+上記2件の意図的な失敗確認では、`02-checkout-consistency.spec.ts` の1件目が実際に
+購入を完走させるため、対象商品（Practice Pad Set・Compact Tuner Pedal）の在庫を
+消費する。今回の一連の再実施（`01-cart-display.spec.ts` を複数回、
+`02-checkout-consistency.spec.ts` を複数回実行）の結果、この2商品の在庫
+（`wp_usces_skus.stocknum`）が実際に0まで減少し、`docs/ai-report.md`
+「うまくいかなかったこと・時間を要したこと（E2E、追記）」に既に記録されている
+「商品在庫の枯渇による他specへの副作用」を、今回の検証作業自体で再現する形になった。
+`env-reset.sh` は在庫を戻さない設計（意図的）のため、`wp eval` 経由で `$wpdb->update()`
+により該当2商品の `stocknum` を種データの値（`docker/seed-items.php:345`）と同じ `10`
+に戻してから、`./e2e/bin/env-reset.sh` で `wcd_settings` / `wcd_exclusions` を既知の
+状態に戻し、`01-cart-display.spec.ts` と `02-checkout-consistency.spec.ts` を続けて
+実行した。
+
+```bash
+cd e2e && npx playwright test tests/01-cart-display.spec.ts tests/02-checkout-consistency.spec.ts
+```
+
+結果:
+
+```
+✓  1 しきい値未満では割引行が出ない (792ms)
+✓  2 1段目に到達すると -500 と割引後合計が出る (718ms)
+✓  3 2段目に到達すると -2000 に切り替わり、累積しない (699ms)
+✓  4 カート画面と購入確認画面で割引額が一致し、購入を完了できる (5.0s)
+✓  5 確定後の受注データにも同じ割引額が記録されている (1.4s)
+✓  6 再計算を3回繰り返しても割引額が変動しない（二重計上の非再発） (1.9s)
+6 passed (15.8s)
+```
+
+6件全て PASS した。`git status --short` は空であり、`includes/class-wcd-integration.php`・
+`e2e/tests/01-cart-display.spec.ts` のいずれも一時改変が残っていないことを確認済み。
+
+**この検証の意味**: 二重計上バグ（-500 → -1,000 → -1,500 と積み上がる）は、本レポート
+「AIの出力が誤っていた箇所」3で記録した通り、実装フェーズでは検出できず実機検証で
+初めて発見された、このプラグインで最も再発しやすいリスク領域である。その修正の正しさを
+守る `02-checkout-consistency.spec.ts` の3件目が、差し戻しロジックを欠いた実装に対して
+確実に FAIL することを今回実機で確認できたことは、「テストが存在すること」ではなく
+「テストが本当にこのリスクを検知できること」を担保する。また `01-cart-display.spec.ts`
+側で発覚した `beforeAll` の `resetToKnownState()` が意図的な失敗確認を無効化するという
+計画内部の矛盾は、計画書のコード例をそのまま実行するだけでは検証が成立しない場合が
+あることを示す実例であり、E2E実装全体を通じた教訓（次項）に連なるものとして記録する。
+
 ### E2E実装全体を通じた教訓
 
 12〜14・18〜20は、いずれも「計画書のコード例（AIの出力）を実行する前に、まず実ページ・

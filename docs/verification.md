@@ -567,6 +567,21 @@ try/finally が新たに挟まった後も、`get_injected_discount()` /
 2周目修正で追加された try/finally 保護についても、複数回クリックによる二重計上の
 非再発を17節で実機確認した。
 
+## 19. E2E（Playwright）の意図的な失敗確認（空振り検知）
+
+実装計画（`.nipper/chot/plans/2026-08-20-e2e-tests.md`）タスク4ステップ5・タスク7
+ステップ3が要求する「意図的に条件を壊してテストが空振りしないことを確認する」検証を、
+稼働中の Docker 検証環境に対して実施した。`wcd_settings` を無効化した状態で
+`01-cart-display.spec.ts` を実行すると1段目のテストが `Expected: 500, Received: null`
+で FAIL し、`includes/class-wcd-integration.php` の差し戻しロジックを一時的に単純加算へ
+書き換えた状態で `02-checkout-consistency.spec.ts` を実行すると3件目（再計算のべき等性）
+が `Expected: 500, Received: 1000` で FAIL することを確認した。確認後はいずれも
+`git checkout` で元に戻し、`01-cart-display.spec.ts` と `02-checkout-consistency.spec.ts`
+の全6件が PASS することも再確認した。実行コマンド・実際の出力・検証中に判明した
+`beforeAll` の `resetToKnownState()` が空振り確認を無効化してしまう計画内部の矛盾
+（一時的に無効化して回避した）の詳細は `docs/ai-report.md`「21. 意図的な失敗確認（空振り
+検知）の実施記録（2周目修正）」を参照。
+
 ## その他の記録（参考）
 
 - Welcart Shop・本プラグインの有効化直後のプラグイン一覧:
