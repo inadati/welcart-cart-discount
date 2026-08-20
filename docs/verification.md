@@ -462,20 +462,110 @@ mem_id=1001）を、除外対象ではない管理者アカウント（`admin`�
 
 [`docs/screenshots/39-backward-compat-cart-matches-stage1.png`](screenshots/39-backward-compat-cart-matches-stage1.png)
 
-## 17. `composer test` / `composer lint` の最終確認
+## 17. 除外設定有効時の受注再計算べき等性の確認（2周目修正 try/finally 保護後の実機再検証）
+
+evaluator の REJECT（`recalculation-injection-regression-safety` 軸）を受けた3周目の
+追加検証。14〜15節はいずれも除外設定が有効な状態で「Recalculation」ボタンを**1回だけ**
+クリックした結果しか記録しておらず、2周目修正（コミット `d66e4e9`）で
+`WCD_Integration::filter_order_recalculation()` の `calculate_amount()` 呼び出しに
+try/finally 保護を追加した後も、`get_injected_discount()` / `remember_injected_discount()`
+による二重計上防止ロジックが**複数回**の「Recalculation」クリックで安定することの
+実機証跡が欠けていた。第一段階の8-2節（同一受注への複数回クリックでべき等性を確認）に
+相当する検証を、除外設定が有効な状態で改めて行った。
+
+### 17-1. 除外ランク設定の再有効化
+
+管理画面の除外条件設定で「不良会員」（`mem_status=99`）に再度チェックを入れて保存した
+（DB: `wcd_exclusions` の `ranks` に `99`）。
+
+[`docs/screenshots/40-recalc-idempotency-exclusion-settings.png`](screenshots/40-recalc-idempotency-exclusion-settings.png)
+
+### 17-2. 除外対象でないゲスト受注での複数回クリック（二重計上の非再発）
+
+過去のテスト操作でメタと受注が不整合な状態になっていた既存受注（ID 1009 等）を
+SQL で操作し直すのではなく、混同を避けるため新規にクリーンな受注を確定した。
+Multi Effects Processor（¥32,000、エフェクター）をゲスト（非会員、除外対象外）として
+カートに入れ購入手続きを進め、カート画面・購入確認画面のいずれも「商品合計 ¥32,000」
+「自動割引 -¥2,000」「割引後合計/総合計金額 ¥30,000」と表示されることを確認した上で
+注文を確定し、受注ID **1010** を得た。DB を直接クエリし、
+`wp_usces_order`（ID=1010）が `order_item_total_price = 32000.00` /
+`order_discount = -2000.00`、`wp_usces_order_meta` の `wcd_injected_discount = 2000`
+であり、受注本体とメタが整合したクリーンな状態であることを確認した。
+
+この受注の管理画面編集画面を開き、数量を1→2（¥32,000→¥64,000、しきい値30,000円以上の
+段のため割引額は-¥2,000のまま変わらないはず）に変更し、「Recalculation」ボタンを
+**3回連続でクリック**した。
+
+- 1回目: キャンペーン割引 **-2000**、総合計金額 62,000（商品合計64,000-割引2,000）
+  [`docs/screenshots/41-recalc-idempotency-guest-order1010-click1.png`](screenshots/41-recalc-idempotency-guest-order1010-click1.png)
+- 2回目: キャンペーン割引 **-2000**（1回目から変化なし）
+  [`docs/screenshots/42-recalc-idempotency-guest-order1010-click2.png`](screenshots/42-recalc-idempotency-guest-order1010-click2.png)
+- 3回目: キャンペーン割引 **-2000**（変化なし）
+  [`docs/screenshots/43-recalc-idempotency-guest-order1010-click3.png`](screenshots/43-recalc-idempotency-guest-order1010-click3.png)
+
+3回連続でクリックしても割引額が最初の正しい値（-¥2,000）のまま安定し、二重計上
+（-¥2,500、-¥3,000 のような累積的な誤りへの発展）が発生しないことを実機で確認した。
+
+### 17-3. 除外対象ランクの受注での複数回クリック（0のまま安定することの確認）
+
+除外ランク（不良会員、`mem_status=99`）の会員として新規受注を作成する際、
+過去に使用した会員（ID 1001、`badmember@example.com`）は8-15節の一連の操作で
+受注メタが不整合な状態（`wcd_injected_discount=2000` だが該当受注の
+`order_discount=0.00` のまま未保存）になっていたため、混同を避けるため
+管理画面の「新規会員登録」から別の検証用会員（`badmember2@example.com`、
+ランク「不良会員」）を新規に作成した（DB: `wp_usces_member` ID=1002、
+`mem_status=99`）。
+
+この会員としてフロントからログインし、Multi Effects Processor（¥32,000）を
+購入したところ、除外ランクのため自動割引の行が表示されず「総合計金額 ¥32,000」の
+まま注文を確定し、受注ID **1011** を得た。DB で `wp_usces_order`（ID=1011）が
+`order_item_total_price = 32000.00` / `order_discount = 0.00` であることを確認した。
+
+この受注の管理画面編集画面を開き、数量を1→2（¥32,000→¥64,000）に変更し、
+「Recalculation」ボタンを**3回連続でクリック**した。
+
+- 1回目: キャンペーン割引 **0**、総合計金額 64,000（割引なし）
+  [`docs/screenshots/44-recalc-idempotency-excluded-rank-order1011-click1.png`](screenshots/44-recalc-idempotency-excluded-rank-order1011-click1.png)
+- 2回目: キャンペーン割引 **0**（変化なし）
+  [`docs/screenshots/45-recalc-idempotency-excluded-rank-order1011-click2.png`](screenshots/45-recalc-idempotency-excluded-rank-order1011-click2.png)
+- 3回目: キャンペーン割引 **0**（変化なし）
+  [`docs/screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png`](screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png)
+
+除外対象ランクの受注では、しきい値（30,000円）を大きく超える金額（¥64,000）に
+変更した後も、3回連続のクリックを通じて割引額が0のまま安定することを実機で確認した。
+
+以上17-2・17-3により、`WCD_Exclusion::begin_order_recalculation()` /
+`end_order_recalculation()` の追加で `calculate_amount()` の呼び出し経路に
+try/finally が新たに挟まった後も、`get_injected_discount()` /
+`remember_injected_discount()` による二重計上防止ロジックが、除外設定が有効な状態・
+除外対象ランクの受注・除外対象外の受注のいずれでも、複数回の「Recalculation」
+クリックに対して安定して機能することを確認した。検証後、除外条件設定は
+「不良会員」のチェックを外し、後方互換の基準状態（`wcd_exclusions` の `ranks` /
+`categories` とも空配列）に戻した。
+
+## 18. `composer test` / `composer lint` の最終確認
 
 上記すべての実機検証を終えた最終状態のコードに対し、Docker コンテナ内
-（`docker exec docker-wordpress-1`、bind mount 済みの `vendor/bin/phpunit` /
+（`docker compose exec wordpress`、bind mount 済みの `vendor/bin/phpunit` /
 `vendor/bin/phpcs` を使用）で再実行した。
 
-- `vendor/bin/phpunit --bootstrap tests/bootstrap.php tests/unit`: **44 tests, 51
-  assertions, OK**（第一段階の16件 + 除外機能のユニットテスト28件）
+- `vendor/bin/phpunit --bootstrap tests/bootstrap.php tests/unit`: **46 tests, 53
+  assertions, OK**
 - `vendor/bin/phpcs --standard=phpcs.xml.dist`: 11 / 11 完了、**違反0件**
+
+**訂正**: 本節はもともと「44 tests, 51 assertions」と記録していたが、その値を取得した
+コミット（`1258924`、2026-08-20 10:37:44）は2周目修正コミット `d66e4e9`（受注再計算の
+例外安全性のため try/finally 保護を追加）・`38a9ae6`（会員ランク0の境界値の回帰テストを
+2件追加）より前に作成されたものであり、現在のコードベースの実際の状態を反映していな
+かった。`38a9ae6` で追加された2件の回帰テストの分だけテスト件数・アサーション件数が
+増え、実際に今回 Docker コンテナ内で取得した最新の数値は46 tests, 53 assertionsである。
 
 以上により、設計書「テスト方針／実機検証」の6項目（除外カテゴリの3箇所整合・部分除外、
 除外ランク（会員）、除外ランク（ゲスト）、受注編集再計算での持ち主ランク解決、
 後方互換）をすべて実機で確認した。加えて、当初計画になかった対照実験（ステップ15）を
-追加で行い、「持ち主のランクで判定されている」という主張を裏付けとして補強した。
+追加で行い、「持ち主のランクで判定されている」という主張を裏付けとして補強した。さらに
+2周目修正で追加された try/finally 保護についても、複数回クリックによる二重計上の
+非再発を17節で実機確認した。
 
 ## その他の記録（参考）
 
