@@ -307,6 +307,31 @@ WordPress 標準の Settings API（`register_setting()` / `add_settings_field()`
 WCD_Exclusion へ通知する`）。詳細は `docs/ai-report.md`「AIの出力が誤っていた箇所」を
 参照。
 
+### 受注再計算の例外安全性（2周目のevaluator REJECTで発見・try/finallyで対応）
+
+上記の `begin_order_recalculation() / end_order_recalculation()` の対称呼び出しは、
+実装当初は `WCD_Integration::filter_order_recalculation()` 内で
+`begin...(); $amount = self::calculate_amount( $cart ); end...();` という素朴な直列呼び出しに
+なっていた。
+
+evaluator の REJECT（2周目、`rank-resolution-context-correctness` 軸）は、
+`calculate_amount()` の内部で呼び出される `wcd_eligible_subtotal` / `wcd_available_rules`
+という、他プラグインも購読しうる公開フィルタのコールバックが例外を送出した場合、
+`end_order_recalculation()` が実行されないまま関数を抜けてしまい、静的プロパティ
+`WCD_Exclusion::$recalculating_order_id` が残留する、という設計上の見落としを指摘した。
+残留すると、以降にカート画面・購入確認画面で発生するランク解決（本来はセッション中の
+ログイン会員を見るべき）が誤って「受注再計算中」の分岐に迂回し、無関係な購入者の
+ランクを受注の持ち主のランクと誤認するおそれがあった。
+
+指摘は技術的に正しく、`calculate_amount( $cart )` の呼び出しを try/finally で囲み、
+例外発生時にも `end_order_recalculation()` が確実に呼ばれるよう修正した
+（`includes/class-wcd-integration.php`、コミット `d66e4e9 fix: 受注再計算の例外発生時にも
+受注ID通知を確実に解除する`）。同時に、`WCD_Exclusion_SettingsTest.php` の ranks 系
+テストが会員ランク `0` の境界値（`categories` の「0以下は無条件に破棄する」とは非対称な、
+「`known_ranks` に含まれていれば保持し、含まれていなければ破棄する」という仕様）を
+検証していなかった指摘（`test-coverage-quality` 軸）も受け、回帰テスト2件を追加した
+（コミット `38a9ae6`）。詳細は `docs/ai-report.md`「AIの出力が誤っていた箇所」11を参照。
+
 ### 会員ランク解決の経路依存（第一段階からの拡張点）
 
 会員ランクの解決元は、カート・確認画面（セッション中のログイン会員）と受注編集の再計算

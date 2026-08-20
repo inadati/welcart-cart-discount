@@ -395,9 +395,21 @@ Welcart 側がこれを Domestic ではなく International 扱いと判定し�
 加点要件「特定の会員ランクや商品カテゴリを除外する条件設定」の実装。設計は
 `.nipper/chot/specs/2026-08-20-welcart-cart-discount-exclusions-design.md`、
 実装計画は `.nipper/chot/plans/2026-08-20-welcart-cart-discount-exclusions.md`。
+
 brainstorming → writing-plans → generator（並列生成、タスク1〜11をバッチで
-割り当て）→ 本タスク（タスク12・提出物ドキュメント更新）という同じ chot-harness
-の流れを踏襲した。
+割り当て）→ docs（タスク12・提出物ドキュメント更新）という基本の流れ自体は
+第一段階と同じ chot-harness の構成を踏襲したが、実際にはそこで終わらなかった。
+docs 完了後、evaluator が2周目の評価で REJECT と判定し（`rank-resolution-context-correctness`
+軸・`test-coverage-quality` 軸）、コード側の該当箇所を修正した（受注再計算部分の
+try/finally による静的プロパティ保護、および会員ランク0の境界値の回帰テスト追加。
+コミット `d66e4e9`・`38a9ae6`）。しかしこの2周目修正はコードのみに留まり、
+本レポート・`docs/design-notes.md`・`docs/verification.md` のいずれにも反映されて
+いなかったため、evaluator は3周目の評価で再び REJECT と判定した（`ai-report-accuracy`
+軸・`eval-feedback-loop-documented`軸・`documentation-cross-consistency`軸ほか）。
+本節（本タスク）はその3周目の指摘を受けたドキュメント側の修正である。
+第一段階（本レポート冒頭「使用ツールと進め方」4参照）でも同種の evaluator
+REJECT→修正サイクルが発生しており、第二段階でも同じ構造の指摘が再現したことになる。
+詳細は後述の項11に記録する。
 
 ### 8. writing-plans フェーズで発見した設計書内の記述矛盾
 
@@ -465,6 +477,62 @@ brainstorming → writing-plans → generator（並列生成、タスク1〜11�
 コマンド結果の記録として残す方が、後から辻褄を合わせるより誠実だと判断した）。読者が
 先例コミットを実際に参照する場合は、コミットメッセージ・日時、または現在の
 `git log --oneline` の該当行（`2042131 style: WPCS違反を解消`）を使うこと。
+
+### 11. 受注再計算の例外安全性とランク0境界値のテスト漏れ（2周目のevaluator REJECTで指摘・修正、3周目でドキュメント化）
+
+タスク12（本節冒頭のドキュメント更新）を終えた時点のコードに対し、evaluator が
+2周目の評価で2件の指摘を行った（`rank-resolution-context-correctness` 軸・
+`test-coverage-quality` 軸。この時点の指摘は現在の `.nipper/chot/feedback.md` には
+残っていない（その後の3周目評価の内容で上書きされている）が、指摘内容と対応する
+コミットは以下の通り実在する）。
+
+**指摘1（`rank-resolution-context-correctness` 軸）**: 上記8で追加した
+`WCD_Exclusion::begin_order_recalculation() / end_order_recalculation()` の対称呼び出しは、
+実装当初 `WCD_Integration::filter_order_recalculation()` 内で
+`begin...(); $amount = self::calculate_amount( $cart ); end...();` という素朴な直列呼び出しに
+なっていた。`calculate_amount()` の内部では `wcd_eligible_subtotal` / `wcd_available_rules`
+という、他プラグインも購読しうる公開フィルタを呼び出しており、これらのコールバックが
+例外を送出すると `end_order_recalculation()` が実行されないまま関数を抜け、静的プロパティ
+`WCD_Exclusion::$recalculating_order_id` が残留してしまう。残留すると、以降にカート画面・
+購入確認画面で発生するランク解決（本来はセッション中のログイン会員を見るべき）が誤って
+「受注再計算中」の分岐に迂回し、無関係な購入者のランクを受注の持ち主のランクと誤認する
+おそれがあった。指摘は技術的に正しかった。
+
+**指摘2（`test-coverage-quality` 軸）**: `WCD_Exclusion_SettingsTest.php` の ranks 系テストが、
+会員ランク `0` の境界値を検証していなかった。`WCD_Exclusion_Settings::normalize()` の
+`ranks` は「`known_ranks` に含まれていれば保持し、含まれていなければ破棄する」という
+仕様であり、これは同じ `normalize()` 内の `categories`（「0以下は無条件に破棄する」）とは
+非対称な境界挙動である。この非対称性を固定する回帰テストが欠けていた、という指摘も
+正確だった。
+
+**修正方法**:
+- 指摘1に対し、`calculate_amount( $cart )` の呼び出しを try/finally で囲み、例外発生時にも
+  `end_order_recalculation()` が確実に呼ばれるよう修正した
+  （`includes/class-wcd-integration.php`、コミット `d66e4e9 fix: 受注再計算の例外発生時にも
+  受注ID通知を確実に解除する`）。
+- 指摘2に対し、`test_rank_zero_is_preserved_when_in_known_ranks()` /
+  `test_rank_zero_is_discarded_when_not_in_known_ranks()` の2件を
+  `WCD_Exclusion_SettingsTest.php` に追加した（コミット `38a9ae6 test: 会員ランク0の境界値
+  （categoriesとの非対称性）を回帰テストに追加する`）。実装コード
+  （`includes/class-wcd-exclusion-settings.php`）自体は変更していない。既存実装のまま
+  2件ともPASSすることを確認済み。
+
+この2件のテスト追加により、単体テストの総数は次項「単体テスト件数」に記録した
+**44件から46件**へ増えた。**しかし `docs/verification.md`「最終確認」節（`composer test` /
+`composer lint` の最終確認）は、この2周目修正より前の44件のまま更新されておらず、
+実際のコードベースと食い違っている**（`docs/verification.md` の当該記録を追加した
+コミット 1258924 は 2026-08-20 10:37 時点、d66e4e9・38a9ae6 は同日 10:49 時点であり、
+後者の方が新しい）。この訂正自体は本タスクと並行するもう一方の generator が
+`docs/verification.md` 側で対応する予定だが、なぜ44件と46件の2つの数字が併存して
+いるのかという経緯を、ドキュメント側からも本項で追えるようにしておく。
+
+**教訓**: 2周目修正でコード（try/finally・回帰テスト）は正しく直したにもかかわらず、
+その修正をドキュメント（本レポート・`docs/design-notes.md`・`docs/verification.md`）に
+反映する作業が漏れていた。第一段階では evaluator REJECT サイクルのたびに
+「AIの出力が誤っていた箇所」の項目として記録していた（上記4・6・7）が、第二段階では
+この記録作業自体が抜け落ち、3周目の evaluator の再REJECTで指摘されて初めて気づいた。
+コード修正とドキュメント更新を同じレビューサイクルで扱わないと、両者が容易に
+乖離するという実例として記録する。
 
 ### 単体テスト件数: 実装計画の想定（32件）と実際（44件）の乖離
 
