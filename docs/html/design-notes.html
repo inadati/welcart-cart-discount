@@ -56,7 +56,7 @@
 <h1>設計メモ</h1>
 <p>設計書（<code>.nipper/chot/specs/2026-08-18-welcart-cart-discount-design.md</code>）で選定した
 フックの採用理由と、検討したが採用しなかった候補との比較をまとめる。
-また、実装直前の再調査（実装計画タスク5）および実機検証（タスク15）で判明した、
+また、実装直前の再調査（実装計画タスク5）およびDocker環境での検証（タスク15）で判明した、
 設計書作成時点では未確認だった実装細部をここに統合する。</p>
 <hr>
 <h2 id="使用するフック一覧">使用するフック一覧<a class="anchor" href="#使用するフック一覧">#</a></h2>
@@ -162,7 +162,7 @@
 <li><strong>$discount の性質</strong>: このフックが呼ばれる時点の <code>$discount</code> は、Welcart が
 カート内容から<strong>毎回ゼロから計算し直す</strong>値（キャンペーン割引が無効なら 0）。
 そのため「既存の割引額から自プラグインの割引額を減算（加算）する」実装で、
-他の割引と共存しつつ二重計上を起こさない。この前提は実機検証（タスク15）の
+他の割引と共存しつつ二重計上を起こさない。この前提はDocker環境での検証（タスク15）の
 カート・確認画面・受注データの3箇所で「上位段の切り替え時に前段と合算されない
 こと（¥2,500 ではなく¥2,000）」を確認して裏付けた。</li>
 </ul>
@@ -202,14 +202,14 @@ Welcart 本体を改変せずに割引行を追加できる唯一の差し込み
 誤りを避けるため、実装ではフィルタ引数として受け取った <code>$cart</code> をそのまま使う。</p>
 </li>
 <li>
-<p><strong>$discount の性質（タスク15の実機検証で判明・第1回修正）</strong>: <code>usces_order_discount</code>
+<p><strong>$discount の性質（タスク15のDocker環境での検証で判明・第1回修正）</strong>: <code>usces_order_discount</code>
 とは異なり、この <code>$discount</code> は Welcart が毎回ゼロから計算し直す値では<strong>ない</strong>。
 <code>usces_order_recalculation()</code> の呼び出し元は管理画面の JS から送信される
 <code>$_POST['discount']</code> であり、その実体は受注編集画面の「Campaign discount」欄に
 <strong>現在表示されている値</strong>（＝前回保存時に本プラグインが書き込んだ割引額を含む）
 である。当初の実装は <code>usces_order_discount</code> と同じ「既存の割引額から減算」を
 流用していたため、受注編集画面で数量を変更して「再計算」ボタンを押すたびに
-割引が二重・三重に計上される不具合があった（実機で ¥30,000/¥2,000引き の受注を
+割引が二重・三重に計上される不具合があった（Docker環境で ¥30,000/¥2,000引き の受注を
 数量変更して再計算すると ¥12,000 に対し ¥2,500引き になることを確認。
 正しくは ¥500引き）。この不具合はコミット
 <code>fix: 受注編集の再計算で割引が二重計上されるバグを修正</code> で修正した。
@@ -272,11 +272,11 @@ Welcart が <code>$discount = 0</code> としてから Promotionsale キャン�
 （<code>$other_components - $amount</code>）。</li>
 </ul>
 <p>いずれの経路でも、次回のために新しい割引額（<code>$amount</code>、正の値）をメタに書き直す。</p>
-<p>実機検証（Docker + Playwright、詳細は <code>docs/verification.md</code> 「8. 受注再計算の
+<p>検証（Docker + Playwright、詳細は <code>docs/verification.md</code> 「8. 受注再計算の
 精緻化（2周目修正）の再検証」）で、メタが正しく記録されている状態からの再計算が
 期待通り（¥12,000→¥30,000 の変更で -¥2,000 に正しく切り替わり、複数回クリックしても
 値が変わらない）ことを確認した。一方、<strong>メタが一度も記録されていない受注</strong>（本修正
-より前に作成された受注）に対する挙動には既知の限界が残ることも実機で確認した。
+より前に作成された受注）に対する挙動には既知の限界が残ることもDocker環境で確認した。
 詳細は次の「受注再計算の既知の限界（2周目修正で判明）」を参照。</p>
 <p>なお、この「8」節の再検証は既存受注（ID 1000）を SQL で意図的に既知の状態に戻して
 行ったものであり、<code>usces_action_reg_orderdata</code> フック自体が実際のフロント購入フローを
@@ -284,17 +284,17 @@ Welcart が <code>$discount = 0</code> としてから Promotionsale キャン�
 追加して購入手続きを最後まで進め、新しい受注（ID 1001）を確定させたところ、
 <code>record_injected_discount_on_order_registration()</code> が実際に発火し、
 <code>wp_usces_order_meta.wcd_injected_discount</code> に正しい割引額（¥2,000）が自動的に
-記録されることを実機で確認した。さらにこの新規受注を管理画面で数量変更・
+記録されることをDocker環境で確認した。さらにこの新規受注を管理画面で数量変更・
 「Recalculation」した際も、正しい段（-¥500）に切り替わり、複数回クリックしても
 値が変わらないことを確認した。詳細は <code>docs/verification.md</code>
-「9. 新規受注（フロント購入フロー）での受注メタ自動記録の実機確認」を参照。</p>
+「9. 新規受注（フロント購入フロー）での受注メタ自動記録のDocker環境での確認」を参照。</p>
 </li>
 </ul>
 <hr>
 <h2 id="受注再計算の既知の限界2周目修正で判明未解決">受注再計算の既知の限界（2周目修正で判明・未解決）<a class="anchor" href="#受注再計算の既知の限界2周目修正で判明未解決">#</a></h2>
 <p>第2回修正（前回注入額のみを差し戻す方式）には、<strong>本修正より前に作成された受注</strong>
 （<code>usces_action_reg_orderdata</code> が一度も発火していない、つまり <code>wcd_injected_discount</code>
-メタが存在しない受注）に対して既知の限界が残る。実機（Docker 上の実際の受注データ、
+メタが存在しない受注）に対して既知の限界が残る。検証環境（Docker 上の実際の受注データ、
 ID 1000）で以下を確認した。</p>
 <p><strong>現象</strong>: メタ未記録の受注に対して初めて「Recalculation」を押すと、
 <code>get_injected_discount()</code> がメタなしを <code>0.0</code> として返すため、<code>$discount</code>
@@ -311,17 +311,17 @@ ID 1000）で以下を確認した。</p>
 <p>（<code>amount_before_fix</code> は修正前の最後の正しい割引額、<code>amount_n</code> は現在のカート状態での
 正しい割引額）となり、<strong>修正前の割引額がオフセットとして永続的に上乗せされ続ける</strong>
 と推定された。2周目修正の時点ではこの続き（-¥1,000 の状態から連続して数量を
-変更して再計算する具体的な操作）までは実機検証しておらず、-¥2,500 という数値は
+変更して再計算する具体的な操作）まではDocker環境で検証しておらず、-¥2,500 という数値は
 上記の数式から導いた机上の推定値だった（<code>docs/verification.md</code> 8-1節は数量を変えずに
 「Recalculation」を押して -¥1,000 になることを確認した時点で止まっており、8-2節は
 そこから連続してではなく、SQLで改めてクリーンな状態に戻してから数量10への変更を
 検証していた）。</p>
 <p>3周目修正で、この未検証だった続きの操作（-¥1,000 の状態から<strong>SQLでリセットせず
-そのまま</strong>数量を10・¥30,000に変更して「Recalculation」を押す）を実機で行い、
+そのまま</strong>数量を10・¥30,000に変更して「Recalculation」を押す）をDocker環境で行い、
 表示が実際に <strong>-¥2,500</strong> になることを確認した（推定値と一致。
 <code>docs/screenshots/22-order1000-recalc2-minus2500-confirmed.png</code>）。
 これにより、数式によるtelescoping説明（<code>amount_before_fix = 500</code> が毎回加算され
-続けるため <code>-500 - 2000 = -2500</code>）が実機の挙動と正確に一致することが確認できた。
+続けるため <code>-500 - 2000 = -2500</code>）がDocker環境での実際の挙動と正確に一致することが確認できた。
 詳細は <code>docs/verification.md</code>「10. 受注再計算の既知の限界の追加検証」を参照。</p>
 <p><strong>回復方法</strong>: この状態を解消するには、管理者が「Campaign discount」欄の値を手動で
 正しい額に書き換えてから「change decision」（保存）を行う必要がある。保存処理自体は
@@ -329,12 +329,12 @@ ID 1000）で以下を確認した。</p>
 「discount フィールドの値」と「メタに記録された注入額」が矛盾のない状態に戻り、
 以降の再計算は正しく動作する。2周目修正の時点ではこの回避策を SQL による DB 直接
 書き換えでしか検証しておらず、「管理画面の UI で Campaign discount 欄を手動編集して
-保存する」という手順そのものが実機で機能することは未検証だった。3周目修正で、
+保存する」という手順そのものがDocker環境で機能することは未検証だった。3周目修正で、
 上記の -¥2,500 という誤った表示状態から実際に管理画面の Campaign discount 欄へ
 <code>-2000</code> を直接入力し、「change decision」で保存する操作を行い、保存後に DB
 （<code>wp_usces_order.order_discount = -2000.00</code>）へ正しく反映されること、その後
 数量10のまま「Recalculation」を押しても -¥2,000 のまま安定する（健全な状態に
-復帰する）ことを実機で確認した
+復帰する）ことをDocker環境で確認した
 （<code>docs/screenshots/23-order1000-manual-ui-fix-before-save.png</code>,
 <code>docs/screenshots/24-order1000-post-ui-fix-healthy-recalc.png</code>）。</p>
 <p><strong>未解決である理由</strong>: Welcart のフィルタ引数だけでは「メタが存在しない」ことが
@@ -610,7 +610,7 @@ Compose はプロジェクト名でコンテナ・ボリューム・ネットワ
 <code>docker/setup.sh</code>（<code>wp eval-file .../seed-items.php</code>）が再実行されて25点に復元
 されることを確認した（16.766秒）。これにより、<code>env-up.sh</code> の中核3分岐
 （コンテナ未起動→起動／WordPress未インストール→<code>docker/setup.sh</code>／商品25点未満→
-再投入）すべてを実機で動作確認した。</p>
+再投入）すべてをDocker環境で動作確認した。</p>
 <p>続けて <code>env-reset.sh</code>（2.337秒、<code>wcd_settings</code> / <code>wcd_exclusions</code> を既知の状態へ
 更新）と <code>WP_PORT=8099 npx playwright test</code> を隔離環境に対して実行し、<strong>新たな
 限界を1件発見した</strong>。<code>04-admin-settings.spec.ts</code>（管理画面 UI のみで完結し商品の
@@ -628,7 +628,7 @@ Pedal=40 / OD-1 Overdrive=36 / Maple Snare 14inch=46 であり、共有環境の
 <p>したがって、今回の検証で切り分けられた結論は次の2点である。</p>
 <ol>
 <li><strong><code>e2e/bin/env-up.sh</code> の環境構築ロジック自体は健全</strong>であり、「まっさらな状態
-からでも1コマンドで用意できる」という設計目標は実機で裏付けられた（上記の
+からでも1コマンドで用意できる」という設計目標はDocker環境で裏付けられた（上記の
 実測時間・分岐の通過を参照）。</li>
 <li>一方、<strong><code>composer e2e</code> が実行するテストスイート自体は、共有環境
 （<code>docker-wordpress-1</code>）の投稿ID採番に暗黙に依存しており、真にまっさらな

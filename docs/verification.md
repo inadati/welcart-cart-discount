@@ -2,7 +2,7 @@
 
 設計書「動作確認の記録」節に記載した7項目の順に、実際に取得したスクリーンショットと
 説明を並べる。すべて Docker（WordPress 6.6.2 / PHP 8.2.25 / Welcart 2.12.1.2608181）
-上で実機操作して取得したものであり、未実施の項目はない。
+上で実際に操作して取得したものであり、未実施の項目はない。
 
 検証手順（テスト商品・割引ルールの内容）は `README.md` の
 「動作確認環境」節と合わせて参照すること。
@@ -69,7 +69,7 @@
 DB（`wp_usces_order`）でも `order_item_total_price = 30000.00` /
 `order_discount = -2000.00` として保存されていることを直接クエリして確認した。
 これにより、カート画面・確認画面・受注データの3箇所で割引額（¥2,000）が
-完全に一致することを実機で確認できた。
+完全に一致することをDocker環境で実際に確認できた。
 
 ---
 
@@ -114,7 +114,7 @@ DB（`order_item_total_price=12000.00` / `order_discount=-500.00`）へ正しく
 evaluator の REJECT を受けた2周目修正（`fix: カート表フッター挿入時に $usces->cart の
 null安全性を確保` / `feat: 受注再計算で自プラグイン注入額のみを精緻に差し戻すよう改善`）
 について、既存の Docker 環境（コンテナは起動済みだったためそのまま使用）と Playwright で
-実機再検証を行った。テスト方法は、上記1〜7で確定した受注（ID 1000）を SQL で意図的に
+実際に操作して再検証を行った。テスト方法は、上記1〜7で確定した受注（ID 1000）を SQL で意図的に
 既知の状態に戻しながら再計算を行うというものである。フルの購入フロー（カート30,000円→
 受注確定）から毎回やり直さなかった理由は `docs/ai-report.md`「AIの出力が誤っていた箇所」5
 に記録した通り、既存受注を使う方が検証したいシナリオ（本修正より前に作成された受注の
@@ -150,7 +150,7 @@ DB（`wp_usces_order.order_discount` / `wp_usces_order_meta.wcd_injected_discoun
 [`docs/screenshots/13-recalc-clean-post-fix-2000.png`](screenshots/13-recalc-clean-post-fix-2000.png)
 
 この結果、メタが正しく追跡されている限り、精緻化後のロジックは意図通りに動作する
-ことを実機で確認した。8-1 で確認した限界は、あくまで「メタが一度も記録されていない
+ことをDocker環境で実際に確認した。8-1 で確認した限界は、あくまで「メタが一度も記録されていない
 受注」に固有のものである。
 
 ### 8-3. カート画面（フロント）のリグレッション確認（null 安全性修正）
@@ -164,7 +164,7 @@ DB（`wp_usces_order.order_discount` / `wp_usces_order_meta.wcd_injected_discoun
 
 なお、`$usces->cart` が実際に null になる状況（このガードが本来守ろうとしている
 経路）そのものは、通常のブラウザ操作では再現できなかった。これはコードレビューで
-対処した防御的分岐であり、この経路自体を実機で発火させることはできていない
+対処した防御的分岐であり、この経路自体をDocker環境上の実際の操作で発火させることはできていない
 （`docs/ai-report.md`「うまくいかなかったこと」に同旨を記録）。
 
 ### 8-4. `composer lint` / `composer test` の再実行
@@ -177,7 +177,7 @@ DB（`wp_usces_order.order_discount` / `wp_usces_order_meta.wcd_injected_discoun
   17 assertions, OK
 - `vendor/bin/phpcs --standard=phpcs.xml.dist`: 7 / 7 完了、違反0件
 
-## 9. 新規受注（フロント購入フロー）での受注メタ自動記録の実機確認（3周目修正）
+## 9. 新規受注（フロント購入フロー）での受注メタ自動記録のDocker環境での確認（3周目修正）
 
 evaluator の REJECT（`order-meta-hook-coverage` 軸）を受け、上記「8」節までの再検証が
 既存受注（ID 1000）を SQL で意図的に状態操作したものに留まり、
@@ -208,7 +208,7 @@ evaluator の REJECT（`order-meta-hook-coverage` 軸）を受け、上記「8�
 `WCD_Integration::record_injected_discount_on_order_registration()` が
 `$args['order_id']` と `$args['cart']` を正しく受け取って、本プラグインが注入した
 割引額（¥2,000）を `wp_usces_order_meta.wcd_injected_discount` へ自動的に正しく
-記録すること**を実機で確認した。管理画面の受注詳細画面でも Campaign discount が
+記録すること**をDocker環境で実際に確認した。管理画面の受注詳細画面でも Campaign discount が
 `-2000.00` と表示されることを確認した。
 
 [`docs/screenshots/18-new-order-1001-detail.png`](screenshots/18-new-order-1001-detail.png)
@@ -229,10 +229,10 @@ evaluator の REJECT（`order-meta-hook-coverage` 軸）を受け、上記「8�
 
 [`docs/screenshots/20-new-order-1001-saved-500.png`](screenshots/20-new-order-1001-saved-500.png)
 
-## 10. 受注再計算の既知の限界の追加検証（3周目修正・-¥2,500 の実機確認と UI 経由の手動修正）
+## 10. 受注再計算の既知の限界の追加検証（3周目修正・-¥2,500 のDocker環境での確認と UI 経由の手動修正）
 
 evaluator の REJECT（`known-limitation-precision` 軸）を受け、`docs/design-notes.md`
-「受注再計算の既知の限界」節が「実機で確認した」と記載していた -¥2,500 という数値と、
+「受注再計算の既知の限界」節が「Docker環境で確認した」と記載していた -¥2,500 という数値と、
 「Campaign discount 欄を UI で手動編集して保存する」という回避策について、実際には
 上記8節では検証されていなかった点（8-1 と 8-2 が連続した操作ではなく、8-2 は SQL で
 改めてクリーンな状態に戻してから行われていたこと、回避策自体は SQL による DB 直接
@@ -250,11 +250,11 @@ evaluator の REJECT（`known-limitation-precision` 軸）を受け、`docs/desi
 もう一度「Recalculation」を押した。実際に表示された値は **-¥2,500** であり、
 `docs/design-notes.md` の数式（telescoping 展開: `discount_n = -(amount_before_fix) -
 amount_n`、`amount_before_fix = 500` が毎回加算され続けるため
-`-500 - 2000 = -2500`）による推定値と正確に一致することを実機で確認した。
+`-500 - 2000 = -2500`）による推定値と正確に一致することをDocker環境で実際に確認した。
 
 [`docs/screenshots/22-order1000-recalc2-minus2500-confirmed.png`](screenshots/22-order1000-recalc2-minus2500-confirmed.png)
 
-**手順3（回避策の実機確認・UI 経由の手動修正）**: 上記の誤った状態（表示 -¥2,500）から、
+**手順3（回避策のDocker環境での確認・UI 経由の手動修正）**: 上記の誤った状態（表示 -¥2,500）から、
 実際に管理画面の「Campaign discount」欄（`#order_discount`）へ直接 `-2000` を入力し
 （SQL ではなく UI 操作）、「change decision」ボタンで保存した。
 
@@ -263,8 +263,8 @@ amount_n`、`amount_before_fix = 500` が毎回加算され続けるため
 保存後、DB を直接クエリして `wp_usces_order`（ID=1000）が
 `order_item_total_price = 30000.00` / `order_discount = -2000.00` として正しく
 反映されていることを確認した。これにより「Campaign discount 欄を UI で手動編集して
-保存する」という回避策が、SQL によるシミュレーションではなく実際の管理画面操作を
-通じて機能することを実機で確認できた。
+保存する」という回避策が、SQL によるシミュレーションではなく、Docker環境で実際の
+管理画面操作を通じて機能することを確認できた。
 
 さらに、この保存後にページを再読み込みしてもう一度「Recalculation」を押したところ、
 表示は -¥2,000 のまま変化しなかった（メタと discount フィールドの整合が回復し、
@@ -284,10 +284,10 @@ amount_n`、`amount_before_fix = 500` が毎回加算され続けるため
 
 ---
 
-# 第二段階: 除外条件設定（会員ランク・商品カテゴリ）の実機検証
+# 第二段階: 除外条件設定（会員ランク・商品カテゴリ）のDocker環境での検証
 
 設計書 `.nipper/chot/specs/2026-08-20-welcart-cart-discount-exclusions-design.md`
-「テスト方針／実機検証」の6項目を、実装計画タスク13の手順に沿って実際に操作して確認した。
+「テスト方針／Docker環境での検証」の6項目を、実装計画タスク13の手順に沿って実際に操作して確認した。
 環境は第一段階と同一（Docker: WordPress 6.6.2 / PHP 8.2.25 / Welcart 2.12.1.2608181）。
 検証用商品は既存の25点（`docker/seed-items.php`）とテスト商品2点（TEST-40000 / TEST-3000）
 をそのまま使用し、新規投入は行っていない。
@@ -356,7 +356,7 @@ amount_n`、`amount_before_fix = 500` が毎回加算され続けるため
 DBを直接クエリしても `wp_usces_order`（ID=1008）が
 `order_item_total_price = 64500.00` / `order_discount = -500.00` として保存されている
 ことを確認した。これにより、除外カテゴリ設定時も**カート画面・購入確認画面・受注データの
-3箇所で割引額（¥500）が完全に一致する**ことを実機で確認した。
+3箇所で割引額（¥500）が完全に一致する**ことをDocker環境で確認した。
 
 [`docs/screenshots/29-exclusion-category-order-detail.png`](screenshots/29-exclusion-category-order-detail.png)
 
@@ -440,7 +440,7 @@ mem_id=1001）を、除外対象ではない管理者アカウント（`admin`�
 この対照実験により、ステップ14で割引が出なかったのは操作者（管理者）のセッション状態や
 偶然の不具合によるものではなく、**除外設定に「不良会員」が含まれているかどうかに正確に
 連動して**、受注の持ち主（badmember、不良会員）のランクで判定が行われていることを
-実機で確認できた。設計書の「経路2: 受注編集画面の再計算」節が意図した、
+Docker環境での操作を通じて確認できた。設計書の「経路2: 受注編集画面の再計算」節が意図した、
 `WCD_Integration::filter_order_recalculation()` 実行中だけ対象受注IDを `WCD_Exclusion`
 へ通知し、セッションではなく受注の持ち主のランクを解決する実装が、意図どおりに
 機能していることの裏付けとなった。
@@ -459,11 +459,11 @@ mem_id=1001）を、除外対象ではない管理者アカウント（`admin`�
 「割引後合計 ¥11,500」と表示され、これは本ドキュメント冒頭「3. しきい値到達後の
 カート画面（割引行の表示）」に記録した第一段階の結果と**完全に同一の数値**であった。
 除外条件を導入する前（第一段階）と、除外条件をすべて空にした状態（第二段階）とで
-挙動に差が無いことを実機で確認した。
+挙動に差が無いことをDocker環境で確認した。
 
 [`docs/screenshots/39-backward-compat-cart-matches-stage1.png`](screenshots/39-backward-compat-cart-matches-stage1.png)
 
-## 17. 除外設定有効時の受注再計算べき等性の確認（2周目修正 try/finally 保護後の実機再検証）
+## 17. 除外設定有効時の受注再計算べき等性の確認（2周目修正 try/finally 保護後のDocker環境での再検証）
 
 evaluator の REJECT（`recalculation-injection-regression-safety` 軸）を受けた3周目の
 追加検証。14〜15節はいずれも除外設定が有効な状態で「Recalculation」ボタンを**1回だけ**
@@ -471,7 +471,7 @@ evaluator の REJECT（`recalculation-injection-regression-safety` 軸）を受�
 `WCD_Integration::filter_order_recalculation()` の `calculate_amount()` 呼び出しに
 try/finally 保護を追加した後も、`get_injected_discount()` / `remember_injected_discount()`
 による二重計上防止ロジックが**複数回**の「Recalculation」クリックで安定することの
-実機証跡が欠けていた。第一段階の8-2節（同一受注への複数回クリックでべき等性を確認）に
+Docker環境での検証記録が欠けていた。第一段階の8-2節（同一受注への複数回クリックでべき等性を確認）に
 相当する検証を、除外設定が有効な状態で改めて行った。
 
 ### 17-1. 除外ランク設定の再有効化
@@ -505,7 +505,7 @@ Multi Effects Processor（¥32,000、エフェクター）をゲスト（非会�
   [`docs/screenshots/43-recalc-idempotency-guest-order1010-click3.png`](screenshots/43-recalc-idempotency-guest-order1010-click3.png)
 
 3回連続でクリックしても割引額が最初の正しい値（-¥2,000）のまま安定し、二重計上
-（-¥2,500、-¥3,000 のような累積的な誤りへの発展）が発生しないことを実機で確認した。
+（-¥2,500、-¥3,000 のような累積的な誤りへの発展）が発生しないことをDocker環境で確認した。
 
 ### 17-3. 除外対象ランクの受注での複数回クリック（0のまま安定することの確認）
 
@@ -533,7 +533,7 @@ Multi Effects Processor（¥32,000、エフェクター）をゲスト（非会�
   [`docs/screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png`](screenshots/46-recalc-idempotency-excluded-rank-order1011-click3.png)
 
 除外対象ランクの受注では、しきい値（30,000円）を大きく超える金額（¥64,000）に
-変更した後も、3回連続のクリックを通じて割引額が0のまま安定することを実機で確認した。
+変更した後も、3回連続のクリックを通じて割引額が0のまま安定することをDocker環境で確認した。
 
 以上17-2・17-3により、`WCD_Exclusion::begin_order_recalculation()` /
 `end_order_recalculation()` の追加で `calculate_amount()` の呼び出し経路に
@@ -546,7 +546,7 @@ try/finally が新たに挟まった後も、`get_injected_discount()` /
 
 ## 18. `composer test` / `composer lint` の最終確認
 
-上記すべての実機検証を終えた最終状態のコードに対し、Docker コンテナ内
+上記一連の検証を終えた最終状態のコードに対し、Docker コンテナ内
 （`docker compose exec wordpress`、bind mount 済みの `vendor/bin/phpunit` /
 `vendor/bin/phpcs` を使用）で再実行した。
 
@@ -561,12 +561,12 @@ try/finally が新たに挟まった後も、`get_injected_discount()` /
 かった。`38a9ae6` で追加された2件の回帰テストの分だけテスト件数・アサーション件数が
 増え、実際に今回 Docker コンテナ内で取得した最新の数値は46 tests, 53 assertionsである。
 
-以上により、設計書「テスト方針／実機検証」の6項目（除外カテゴリの3箇所整合・部分除外、
+以上により、設計書「テスト方針／Docker環境での検証」の6項目（除外カテゴリの3箇所整合・部分除外、
 除外ランク（会員）、除外ランク（ゲスト）、受注編集再計算での持ち主ランク解決、
-後方互換）をすべて実機で確認した。加えて、当初計画になかった対照実験（ステップ15）を
+後方互換）をすべてDocker環境で確認した。加えて、当初計画になかった対照実験（ステップ15）を
 追加で行い、「持ち主のランクで判定されている」という主張を裏付けとして補強した。さらに
 2周目修正で追加された try/finally 保護についても、複数回クリックによる二重計上の
-非再発を17節で実機確認した。
+非再発を17節でDocker環境での検証により確認した。
 
 ## 19. E2E（Playwright）の意図的な失敗確認（空振り検知）
 

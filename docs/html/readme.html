@@ -50,7 +50,7 @@
 <code>docs/verification.md</code> を参照。</p>
 <h2 id="動作確認環境">動作確認環境<a class="anchor" href="#動作確認環境">#</a></h2>
 <p>以下の構成で、カート画面・購入確認画面・受注データの割引額整合、および
-受注編集時の再計算を <strong>実機で操作して動作を確認した</strong>（<code>docs/verification.md</code>
+受注編集時の再計算を <strong>Docker環境で実際に操作して動作を確認した</strong>（<code>docs/verification.md</code>
 参照）。「動くはず」ではなく、この組み合わせで実際に動作したことを記載する。</p>
 <div class="table-wrap">
 <table>
@@ -93,10 +93,8 @@
 <li>受注データ（一覧・詳細・DB の <code>wp_usces_order.order_discount</code>）との整合</li>
 <li>受注編集画面での数量変更・再計算後も正しい段の割引が再適用されること</li>
 </ul>
-<p><strong>未確認の項目</strong>: PHP 7.4／8.0／8.1 系や WordPress 6.6 以外のバージョンでの動作、
-本番相当環境（Dokploy）へのデプロイ後の動作は未確認。設計書では Dokploy への
-デプロイ検証も検討していたが、時間の制約により今回は Docker Compose 環境での
-検証のみで完了とした。</p>
+<p><strong>未確認の項目</strong>: PHP 7.4／8.0／8.1 系や WordPress 6.6 以外のバージョンでの動作は
+未確認。</p>
 <p>Composer の開発依存（PHPUnit 9.6.36 / PHP_CodeSniffer 3.13.6 相当、
 <code>composer.json</code> の <code>^</code> 指定範囲内）はローカル環境（PHP 8.2.29 / Composer 2.10.2）
 でインストールし、<code>composer lint</code> ・<code>composer test</code> を実行して確認した
@@ -154,7 +152,7 @@ PHP 8 系で生成されており開発依存（<code>doctrine/instantiator</cod
 <ul class="checklist">
 <li class="is-checked">独立したプラグインとして実装（Welcart 本体・テーマは無改変）</li>
 <li class="is-checked">管理画面からしきい値金額と割引額を複数段設定可能（<code>Welcart Shop &gt; 自動割引設定</code>）</li>
-<li class="is-checked">カート画面・購入確認画面・受注データの3箇所で割引が整合（実機確認済み。
+<li class="is-checked">カート画面・購入確認画面・受注データの3箇所で割引が整合（Docker環境で操作して確認済み。
 受注編集時の再計算も新規受注では整合を確認・不具合修正済み。ただし
 <strong>メタ未記録の既存受注には既知の限界が残る</strong>。詳細は下記「制限事項」参照）</li>
 <li class="is-checked">Welcart の既存フック／フィルタのみで実現（一覧は <code>docs/design-notes.md</code>）</li>
@@ -186,15 +184,15 @@ PHP 8 系で生成されており開発依存（<code>doctrine/instantiator</cod
 <p>本プラグイン導入・修正より前に作成された受注（受注登録時に本プラグインが
 注入した割引額を記録する <code>wcd_injected_discount</code> メタが存在しない受注）に対しては、
 修正後最初の1回の「Recalculation」に限り誤った割引額が表示される
-（実機確認値: 正しくは -¥500 のところ <strong>-¥1,000</strong>、さらにそこから数量変更を
+（Docker環境での確認値: 正しくは -¥500 のところ <strong>-¥1,000</strong>、さらにそこから数量変更を
 重ねて再計算すると <strong>-¥2,500</strong>）。この誤りは1回では収まらず、以降の再計算でも
 そのずれを引きずり続ける。本プラグイン適用後に新規で確定した受注（メタが
 自動記録される受注）ではこの問題は発生しない。</p>
 <p><strong>回避手段</strong>: 管理画面の受注編集画面で「Campaign discount」欄の値を手動で
 正しい割引額に書き換えてから「change decision」（保存）を行う。これにより
 記録済みメタと表示中の値の矛盾が解消し、以降の再計算が正しく動作することを
-実機で確認済み。</p>
-<p>発生条件の解析・実機確認の手順の詳細は、<code>docs/design-notes.md</code> の
+Docker環境で実際に操作して確認済み。</p>
+<p>発生条件の解析・確認手順の詳細は、<code>docs/design-notes.md</code> の
 「受注再計算の既知の限界（2周目修正で判明・未解決）」節
 （<a href="design-notes.html#受注再計算の既知の限界2周目修正で判明未解決">直接リンク</a>）を参照。</p>
 <h2 id="インストール">インストール<a class="anchor" href="#インストール">#</a></h2>

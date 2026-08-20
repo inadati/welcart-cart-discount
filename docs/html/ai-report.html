@@ -26,11 +26,11 @@
         <a href="#aiの出力が誤っていた箇所とその発見修正方法" class="toc-link toc-h2">AIの出力が誤っていた箇所とその発見・修正方法</a>
         <a href="#1-usces_filter_cart_table_footer-の引数仕様設計時点の誤り実装前に訂正" class="toc-link toc-h3">1. usces_filter_cart_table_footer の引数仕様（設計時点の誤り・実装前に訂正）</a>
         <a href="#2-wcd_settingsnormalize-の-absint-適用順序コード内コメントから確認できる設計判断" class="toc-link toc-h3">2. WCD_Settings::normalize() の absint() 適用順序（コード内コメントから確認できる設計判断）</a>
-        <a href="#3-受注編集の再計算フィルタでの割引二重計上タスク15の実機検証で発見修正" class="toc-link toc-h3">3. 受注編集の再計算フィルタでの割引二重計上（タスク15の実機検証で発見・修正）</a>
+        <a href="#3-受注編集の再計算フィルタでの割引二重計上タスク15のdocker環境での検証で発見修正" class="toc-link toc-h3">3. 受注編集の再計算フィルタでの割引二重計上（タスク15のDocker環境での検証で発見・修正）</a>
         <a href="#4-welcart-の受注は投稿タイプで-post-meta-が使えるという誤った前提2周目修正で訂正" class="toc-link toc-h3">4. 「Welcart の受注は投稿タイプで post meta が使える」という誤った前提（2周目修正で訂正）</a>
-        <a href="#5-受注再計算のコード修正後実機docker--playwrightで再検証した結果" class="toc-link toc-h3">5. 受注再計算のコード修正後、実機（Docker + Playwright）で再検証した結果</a>
+        <a href="#5-受注再計算のコード修正後検証環境docker--playwrightで再検証した結果" class="toc-link toc-h3">5. 受注再計算のコード修正後、検証環境（Docker + Playwright）で再検証した結果</a>
         <a href="#6-usces_action_reg_orderdata-フックの新規受注フローでの発火が未確認だったこと3周目修正で解消" class="toc-link toc-h3">6. usces_action_reg_orderdata フックの新規受注フローでの発火が未確認だったこと（3周目修正で解消）</a>
-        <a href="#7--2500-という数値と-ui-経由の回避策が実機未確認のまま記載されていたこと3周目修正で訂正" class="toc-link toc-h3">7. -¥2,500 という数値と UI 経由の回避策が実機未確認のまま記載されていたこと（3周目修正で訂正）</a>
+        <a href="#7--2500-という数値と-ui-経由の回避策がdocker環境で未確認のまま記載されていたこと3周目修正で訂正" class="toc-link toc-h3">7. -¥2,500 という数値と UI 経由の回避策がDocker環境で未確認のまま記載されていたこと（3周目修正で訂正）</a>
         <a href="#うまくいかなかったこと時間を要したこと" class="toc-link toc-h2">うまくいかなかったこと・時間を要したこと</a>
         <a href="#welcart-管理画面の新規商品登録で-playwright-の合成クリックが機能しなかった" class="toc-link toc-h3">Welcart 管理画面の「新規商品登録」で Playwright の合成クリックが機能しなかった</a>
         <a href="#受注再計算の精緻化後も残る既知の限界未解決正直に記録する" class="toc-link toc-h3">受注再計算の精緻化後も残る既知の限界（未解決・正直に記録する）</a>
@@ -80,7 +80,7 @@ generator フェーズが複数の generator サブエージェントにバッ�
 実装した。実際のコミット順序（後述）は計画のタスク番号の順序とは一致しない箇所があるが、
 これは意図的な並列化の結果であり見落としではない。詳細は次節「コミット順序と実装計画の
 タスク番号の関係」に記録する。</li>
-<li><strong>本タスク（15・16、および本レポート作成後の2周目・3周目修正）</strong>: 実機検証
+<li><strong>本タスク（15・16、および本レポート作成後の2周目・3周目修正）</strong>: 検証
 （Docker + Playwright によるブラウザ操作）と提出物ドキュメントの作成。実装エージェント
 とは別のセッションとして、すでに実装済みのコードを外部から検証する立場で作業した。
 2周目では、chot-harness の evaluator が REJECT と判定した指摘
@@ -88,9 +88,9 @@ generator フェーズが複数の generator サブエージェントにバッ�
 2件修正し（カート表フッターの null 安全性確保、受注再計算の精緻化）、本レポートを
 含むドキュメント側は本タスクが担当し整合させた。3周目では、evaluator が
 <code>order-meta-hook-coverage</code> 軸・<code>known-limitation-precision</code> 軸で REJECT と判定した
-指摘（新規受注フローでの受注メタ自動記録が実機未確認であったこと、-¥2,500という
-数値とUI経由の回避策が実機未確認のまま「確認した」と記載されていたこと）を受け、
-本タスクが実機で追加検証を行い、ドキュメントの記述を実際に確認できた内容に
+指摘（新規受注フローでの受注メタ自動記録がDocker環境で未確認であったこと、-¥2,500という
+数値とUI経由の回避策がDocker環境で未確認のまま「確認した」と記載されていたこと）を受け、
+本タスクがDocker環境で実際に操作して追加検証を行い、ドキュメントの記述を実際に確認できた内容に
 訂正した（詳細は「AIの出力が誤っていた箇所」6・7を参照）。</li>
 <li><strong>第二段階（除外条件設定）</strong>: 加点要件の実装として、同じ
 brainstorming → writing-plans → generator（並列生成） の流れを別セッションで
@@ -202,8 +202,8 @@ $threshold = absint( $row['threshold'] );
 TDDで担保している。<strong>absint() を先に適用すると符号情報が失われる</strong>という
 落とし穴は、WordPress関数の意味論を正確に理解していないと踏みやすい誤りであり、
 コメントとして明示的に残すことで再発を防いでいる。</p>
-<h3 id="3-受注編集の再計算フィルタでの割引二重計上タスク15の実機検証で発見修正">3. 受注編集の再計算フィルタでの割引二重計上（タスク15の実機検証で発見・修正）<a class="anchor" href="#3-受注編集の再計算フィルタでの割引二重計上タスク15の実機検証で発見修正">#</a></h3>
-<p>これは実装フェーズではなく、<strong>本タスク（タスク15の実機検証）で新たに発見した
+<h3 id="3-受注編集の再計算フィルタでの割引二重計上タスク15のdocker環境での検証で発見修正">3. 受注編集の再計算フィルタでの割引二重計上（タスク15のDocker環境での検証で発見・修正）<a class="anchor" href="#3-受注編集の再計算フィルタでの割引二重計上タスク15のdocker環境での検証で発見修正">#</a></h3>
+<p>これは実装フェーズではなく、<strong>本タスク（タスク15のDocker環境での検証）で新たに発見した
 不具合</strong>である。</p>
 <p><strong>発見の経緯</strong>: Docker + Playwright で「カート30,000円→受注確定（割引¥2,000）→
 管理画面で受注の数量を変更して¥12,000相当にし、『再計算』ボタンを押す」という
@@ -255,11 +255,11 @@ Welcart 自身が受注メタ用に <code>$usces-&gt;set_order_meta_value()</cod
 コードを書く前に発覚したため実装への混入はなかったが、<code>filter_cart_table_footer</code>
 の引数仕様の誤り（上記1）と同種の「実ソース確認プロセスが機能した事例」として
 記録する。</p>
-<h3 id="5-受注再計算のコード修正後実機docker--playwrightで再検証した結果">5. 受注再計算のコード修正後、実機（Docker + Playwright）で再検証した結果<a class="anchor" href="#5-受注再計算のコード修正後実機docker--playwrightで再検証した結果">#</a></h3>
+<h3 id="5-受注再計算のコード修正後検証環境docker--playwrightで再検証した結果">5. 受注再計算のコード修正後、検証環境（Docker + Playwright）で再検証した結果<a class="anchor" href="#5-受注再計算のコード修正後検証環境docker--playwrightで再検証した結果">#</a></h3>
 <p>上記4の修正（<code>fix: カート表フッター挿入時に $usces-&gt;cart のnull安全性を確保</code> /
 <code>feat: 受注再計算で自プラグイン注入額のみを精緻に差し戻すよう改善</code>）はコードを
 書いた別の generator サブエージェントによるものであり、本タスク（ドキュメント担当）
-が実機で以下を再検証した。</p>
+がDocker環境で実際に操作して以下を再検証した。</p>
 <ul>
 <li>既存の Docker 環境（<code>docker compose -f docker/docker-compose.yml up -d</code>、既に起動済み）
 を用い、Playwright で管理画面にログインし直した（セッション切れのため
@@ -274,11 +274,11 @@ Welcart 自身が受注メタ用に <code>$usces-&gt;set_order_meta_value()</cod
 （2周目修正で判明）」に記録した通り、<strong>メタ未記録の既存受注に対する1回目の再計算は
 実際に二重計上した値（-1000）を返すこと</strong>、<strong>メタが正しく記録された状態からの
 再計算は正しい値（-2000）を返し、複数回クリックしても値が変わらないこと</strong>を
-実機で確認した。カート画面（フロント）についても、商品をカートに追加して
+Docker環境で確認した。カート画面（フロント）についても、商品をカートに追加して
 「自動割引 -¥500」の行が正しく表示されることを確認し、null 安全性ガードの追加が
 通常のカート表示を壊していないことを確認した（<code>$usces-&gt;cart</code> が実際に null になる
 状況そのものは、通常のブラウザ操作では再現できなかった。これはコードレビューで
-対処した防御的分岐であり、この経路自体を実機で発火させることはできていない）。</li>
+対処した防御的分岐であり、この経路自体をDocker環境上の実際の操作で発火させることはできていない）。</li>
 <li>スクリーンショットは <code>docs/screenshots/12-recalc-known-limitation-first-time.png</code>
 （メタ未記録の受注での1回目の再計算、-1000 という誤った表示）、
 <code>docs/screenshots/13-recalc-clean-post-fix-2000.png</code>
@@ -301,13 +301,13 @@ Playwright の合成操作と相性が悪く、フルフローを毎回再現す
 発火することを確認していない」という別の穴を生んでいた</strong>。テスト商品（TEST-40000・
 TEST-3000）はすでに登録済みだったため、3周目修正では新規商品登録は不要であり、
 SKUを再利用してフロントの購入フローを最後まで実行することが実際にはそれほど
-コストが高くないことが分かった。3周目修正でのフルフロー実機確認の結果は
+コストが高くないことが分かった。3周目修正でのフルフローをDocker環境で確認した結果は
 「AIの出力が誤っていた箇所」6を参照。</p>
 <h3 id="6-usces_action_reg_orderdata-フックの新規受注フローでの発火が未確認だったこと3周目修正で解消">6. <code>usces_action_reg_orderdata</code> フックの新規受注フローでの発火が未確認だったこと（3周目修正で解消）<a class="anchor" href="#6-usces_action_reg_orderdata-フックの新規受注フローでの発火が未確認だったこと3周目修正で解消">#</a></h3>
 <p>evaluator の REJECT（<code>order-meta-hook-coverage</code> 軸）は、2周目修正で追加した
 <code>WCD_Integration::record_injected_discount_on_order_registration()</code>
 （<code>usces_action_reg_orderdata</code> に登録）について、フロントの購入フローを通じて
-実際に発火し、正しい値を <code>wp_usces_order_meta</code> へ記録することを確認した実機証跡が
+実際に発火し、正しい値を <code>wp_usces_order_meta</code> へ記録することを確認したDocker環境での検証記録が
 存在しない、と指摘した。指摘は正確だった。2周目の再検証（上記5）は既存受注に対する
 SQL 状態操作のみで、フックのコールバック自体が呼ばれたことは確認していなかった。</p>
 <p>3周目修正で、既存のテスト商品（TEST-40000・TEST-3000）を使いフロント購入フローを
@@ -316,15 +316,15 @@ SQL 状態操作のみで、フックのコールバック自体が呼ばれた�
 自動的に記録されており、<code>record_injected_discount_on_order_registration()</code> が
 実際の受注登録経路で正しく発火・記録することを確認できた。詳細は
 <code>docs/verification.md</code>「9. 新規受注（フロント購入フロー）での受注メタ自動記録の
-実機確認」を参照。</p>
-<h3 id="7--2500-という数値と-ui-経由の回避策が実機未確認のまま記載されていたこと3周目修正で訂正">7. -¥2,500 という数値と UI 経由の回避策が実機未確認のまま記載されていたこと（3周目修正で訂正）<a class="anchor" href="#7--2500-という数値と-ui-経由の回避策が実機未確認のまま記載されていたこと3周目修正で訂正">#</a></h3>
+Docker環境での確認」を参照。</p>
+<h3 id="7--2500-という数値と-ui-経由の回避策がdocker環境で未確認のまま記載されていたこと3周目修正で訂正">7. -¥2,500 という数値と UI 経由の回避策がDocker環境で未確認のまま記載されていたこと（3周目修正で訂正）<a class="anchor" href="#7--2500-という数値と-ui-経由の回避策がdocker環境で未確認のまま記載されていたこと3周目修正で訂正">#</a></h3>
 <p>evaluator の REJECT（<code>known-limitation-precision</code> 軸）は、<code>docs/design-notes.md</code>
 「受注再計算の既知の限界」節が、-¥1,000 の状態から数量10へ変更して再計算すると
--¥2,500 になる、という記述を「実機で確認した」としていたが、実際には
+-¥2,500 になる、という記述を「Docker環境で確認した」としていたが、実際には
 <code>docs/verification.md</code> 8-1 節は数量を変えずに「Recalculation」を押して -¥1,000 に
 なったことのみを確認しており、8-2 節はそこから連続してではなく SQL で改めて
 クリーンな状態に戻してから数量10への変更を検証していたため、-¥1,000 の状態から
-連続して数量10に変更した場合の -¥2,500 という数値は実機で確認されていない
+連続して数量10に変更した場合の -¥2,500 という数値はDocker環境で確認されていない
 数式上の推定値だった、と指摘した。また、回避策として記載していた「Campaign discount
 欄を UI で手動編集して保存する」手順も、実際には SQL による DB 直接書き換えでしか
 検証していなかった。いずれも指摘は正確だった。</p>
@@ -338,7 +338,7 @@ SQL でリセットせず</strong>続けて数量を10（¥30,000）に変更し
 を直接入力し「change decision」で保存する操作を行い、保存後に DB
 （<code>order_discount = -2000.00</code>）へ正しく反映されること、以降の「Recalculation」が
 -¥2,000 のまま安定することを確認した。数式による事前の推定は結果的に正しかったが、
-「推定を実機確認と偽って書かない」というドキュメントの正確性の観点では2周目時点の
+「推定をDocker環境での確認と偽って書かない」というドキュメントの正確性の観点では2周目時点の
 記述に誤りがあった。詳細は <code>docs/verification.md</code>「10. 受注再計算の既知の限界の
 追加検証」を参照。</p>
 <h2 id="うまくいかなかったこと時間を要したこと">うまくいかなかったこと・時間を要したこと<a class="anchor" href="#うまくいかなかったこと時間を要したこと">#</a></h2>
@@ -363,17 +363,17 @@ Playwright の <code>browser_click</code>（内部的には <code>element.click(
 <p>上記「AIの出力が誤っていた箇所」4・5に記録した通り、受注再計算の精緻化
 （<code>wcd_injected_discount</code> メタによる差し戻し）は、<strong>本修正より前に作成された受注</strong>
 （メタが一度も記録されていない受注）に対しては、修正後最初の1回の再計算に限り
-二重計上と同種の誤った値を返してしまう限界が残っている。2周目時点の実機検証では、
+二重計上と同種の誤った値を返してしまう限界が残っている。2周目時点のDocker環境での検証では、
 数量を変えずに「Recalculation」を押して -¥1,000 になることまでは確認していたが、
 <strong>それ以降の再計算・数量変更でも、最初の誤りで生じた一定のずれ（本検証では¥500）を
 含んだ値を返し続ける</strong>という点（数式による説明は <code>docs/design-notes.md</code>
-「受注再計算の既知の限界」節に記録）は、実際には数式からの推定であり実機確認して
+「受注再計算の既知の限界」節に記録）は、実際には数式からの推定でありDocker環境で確認して
 いなかった。この点は evaluator の REJECT（<code>known-limitation-precision</code> 軸）で
-指摘を受け、3周目修正で「AIの出力が誤っていた箇所」7に記録した通り実機で確認し、
+指摘を受け、3周目修正で「AIの出力が誤っていた箇所」7に記録した通りDocker環境で確認し、
 -¥1,000 の状態から連続して数量10へ変更すると実際に -¥2,500 になる（推定と一致）
 ことを確認した。この状態から正しい値に戻すには、管理者が「Campaign discount」欄の
 値を手動で正しい額に修正して保存する（再計算フィルタを経由しない）必要があり、
-この回避策も3周目修正で SQL ではなく実際の管理画面 UI 操作として実機確認した。</p>
+この回避策も3周目修正で SQL ではなく実際の管理画面 UI 操作としてDocker環境で確認した。</p>
 <p>この限界は、本修正のスコープでは解消しきれなかった。理由は、Welcart のフィルタ
 引数だけでは「そもそも過去にこのプラグインが割引を注入したことがあるかどうか」を
 判別する手段がなく（メタが存在しない＝未注入なのか、単に旧バージョンのプラグインで
@@ -391,7 +391,7 @@ Welcart 側がこれを Domestic ではなく International 扱いと判定し�
 原因と推測される。配送方法の設定を International Shipment に切り替えることで
 回避した。根本原因（Welcart の国内/海外判定ロジックの詳細）までは
 時間の制約上、深く追跡していない。</p>
-<p><strong>3周目修正での追記</strong>: 3周目修正のフロント購入フロー実機確認（<code>docs/verification.md</code>
+<p><strong>3周目修正での追記</strong>: 3周目修正のフロント購入フローのDocker環境での確認（<code>docs/verification.md</code>
 「9」節）では、同じくカリフォルニア州の顧客住所で「通常配送」（Domestic 側の設定の
 まま）を選択したにもかかわらず、このエラーは再現しなかった。原因の切り分けは
 行っていないが、以前の検証時に配送設定を International Shipment に切り替えた変更が
@@ -402,7 +402,7 @@ Welcart 側がこれを Domestic ではなく International 扱いと判定し�
 <h3 id="未完了だった項目第一段階時点">未完了だった項目（第一段階時点）<a class="anchor" href="#未完了だった項目第一段階時点">#</a></h3>
 <p>実装計画タスク15のステップ3〜8はすべて実施できた。3周目修正では、evaluator の
 指摘に基づき、新規受注フローでのフック発火確認（<code>docs/verification.md</code> 9節）と
-既知の限界の追加検証（同10節）を追加で実機確認した。第二段階（会員ランク・
+既知の限界の追加検証（同10節）を追加でDocker環境で確認した。第二段階（会員ランク・
 商品カテゴリ除外の実装）は本設計書・実装計画の対象外であり、この時点では
 着手していなかった（当初から意図的にスコープ外としていた）。以下「第二段階:
 除外条件設定」に、実際に実装した経緯を記録する。</p>
@@ -599,9 +599,9 @@ lint → i18n）で、独立して並列実行できるタスクの組が第一�
 本節を含むドキュメント更新（タスク10・11）はいずれも Claude Code が同一セッション内で
 担当した。</p>
 <p><strong>実装計画そのものがコード例を含んでおり、それ自体が AI（writing-plans フェーズの
-Claude Code）の出力である。</strong> 実装（タスク1〜9）で実機検証すると、計画書のコード例の
+Claude Code）の出力である。</strong> 実装（タスク1〜9）でDocker環境での検証を行うと、計画書のコード例の
 大半に実際の Welcart 挙動との相違が見つかった。「計画書は正しいはず」と鵜呑みにせず、
-1つずつ実機で確認しながら実装した結果、以下の誤りを実装が実際にコードへ混入する前に
+1つずつDocker環境で実際に確認しながら実装した結果、以下の誤りを実装が実際にコードへ混入する前に
 （あるいは1回の実行結果として）発見・修正できた。第一段階・第二段階の教訓
 （実ソース確認プロセスの重要性、上記1・4・8など）が、E2Eというブラウザ操作の領域でも
 同型で再現した形になる。</p>
@@ -611,7 +611,7 @@ Claude Code）の出力である。</strong> 実装（タスク1〜9）で実機
 誤りだった。実際には <code>post_type=post</code> に <code>post_mime_type=item</code> を付与した投稿として
 保存されている。加えて <code>wp post list --post_type=... --post_mime_type=item</code> は
 <code>WP_Query</code> 経由だと0件を返す（Welcart 側のフックが介在するとみられる。原因の完全な特定
-までは行っていない）ことも実機で判明した。<code>e2e/bin/env-up.sh</code> の商品数チェックは
+までは行っていない）こともDocker環境での検証で判明した。<code>e2e/bin/env-up.sh</code> の商品数チェックは
 <code>wp eval</code> 経由で <code>$wpdb-&gt;get_var()</code> により <code>wp_posts</code> を直接カウントする方式に修正した
 （<code>WHERE post_type=&quot;post&quot; AND post_mime_type=&quot;item&quot; AND post_status=&quot;publish&quot;</code>）。</p>
 <h3 id="13-カート画面のurlusces-cart-ではなく-page_id5">13. カート画面のURL（<code>/usces-cart/</code> ではなく <code>/?page_id=5</code>）<a class="anchor" href="#13-カート画面のurlusces-cart-ではなく-page_id5">#</a></h3>
@@ -650,7 +650,7 @@ Practice Pad Set 等がそこに現れなかった。<code>ITEMS</code> に商�
 <p>実装計画は完了画面の本文を正規表現（<code>/(\d{3,})/</code> 等）でスクレイピングして受注IDを
 取得する方式を想定していたが、検証用テーマの完了画面は Welcart 本体の汎用完了
 テンプレートをそのまま使用しており、受注番号を一切表示しない（定型文のみ）ことが
-実機で判明した。この方式は原理的に成立しない誤りだった。<code>e2e/helpers/wpcli.ts</code> に
+Docker環境での検証で判明した。この方式は原理的に成立しない誤りだった。<code>e2e/helpers/wpcli.ts</code> に
 <code>getLatestOrderId()</code> を追加し、<code>wp eval</code> 経由で <code>$wpdb-&gt;get_var(&quot;SELECT MAX(ID) FROM {$wpdb-&gt;prefix}usces_order&quot;)</code> により受注テーブルを直接問い合わせる方式に変更した。</p>
 <h3 id="19-受注編集画面のurlはnonce必須で直接構築できない">19. 受注編集画面のURLはnonce必須で直接構築できない<a class="anchor" href="#19-受注編集画面のurlはnonce必須で直接構築できない">#</a></h3>
 <p>実装計画は <code>admin.php?page=usces_orderlist&amp;order_action=edit&amp;order_id=&lt;ID&gt;</code> へ
@@ -791,10 +791,10 @@ PASS のままなのが正しい。2件目（1段目）は割引額 <code>500</c
 <p>6件全て PASS した。<code>git status --short</code> は空であり、<code>includes/class-wcd-integration.php</code>・
 <code>e2e/tests/01-cart-display.spec.ts</code> のいずれも一時改変が残っていないことを確認済み。</p>
 <p><strong>この検証の意味</strong>: 二重計上バグ（-500 → -1,000 → -1,500 と積み上がる）は、本レポート
-「AIの出力が誤っていた箇所」3で記録した通り、実装フェーズでは検出できず実機検証で
+「AIの出力が誤っていた箇所」3で記録した通り、実装フェーズでは検出できずDocker環境での検証で
 初めて発見された、このプラグインで最も再発しやすいリスク領域である。その修正の正しさを
 守る <code>02-checkout-consistency.spec.ts</code> の3件目が、差し戻しロジックを欠いた実装に対して
-確実に FAIL することを今回実機で確認できたことは、「テストが存在すること」ではなく
+確実に FAIL することを今回Docker環境で実際に確認できたことは、「テストが存在すること」ではなく
 「テストが本当にこのリスクを検知できること」を担保する。また <code>01-cart-display.spec.ts</code>
 側で発覚した <code>beforeAll</code> の <code>resetToKnownState()</code> が意図的な失敗確認を無効化するという
 計画内部の矛盾は、計画書のコード例をそのまま実行するだけでは検証が成立しない場合が
@@ -816,7 +816,7 @@ PASS のままなのが正しい。2件目（1段目）は割引額 <code>500</c
 再現不能な受注データを保持している）を一切破壊せずに済む<strong>隔離 Docker Compose 環境</strong>
 （<code>COMPOSE_PROJECT_NAME=wcd-e2e-freshcheck WP_PORT=8099</code>）を新規構築した。この隔離環境に
 対してまっさらな状態から <code>e2e/bin/env-up.sh</code> を実行し、環境構築ロジック自体は健全である
-ことを実機で確認できた。続けて <code>WP_PORT=8099 npx playwright test</code> を実行したところ、
+ことをDocker環境で実際に確認できた。続けて <code>WP_PORT=8099 npx playwright test</code> を実行したところ、
 管理画面 UI のみで完結する <code>04-admin-settings.spec.ts</code>（2件）は PASS した一方、商品を
 カートに入れる <code>01-cart-display.spec.ts</code> / <code>02-checkout-consistency.spec.ts</code> /
 <code>03-category-exclusion.spec.ts</code>（合計9件）はいずれも <code>addToCart()</code> の1回目の呼び出しで
@@ -832,7 +832,7 @@ Compact Tuner Pedal=40 / OD-1 Overdrive=36 / Maple Snare 14inch=46 であり、�
 <code>ITEMS</code> に持たせる設計にした時点を含む）は、いずれも「今稼働中の共有環境で動けばよい」
 という暗黙の前提でこの値をハードコードしており、設計書・<code>docs/design-notes.md</code> が明記する
 「まっさらな状態からでも1コマンドで通る」という中核目標を、実際には満たしていなかった。
-この矛盾はコードレビューだけでは気づけず、隔離環境での実機検証によって初めて発見できた。</p>
+この矛盾はコードレビューだけでは気づけず、隔離環境での実際の操作による検証によって初めて発見できた。</p>
 <p><strong>修正内容</strong>: <code>e2e/helpers/wpcli.ts</code> に <code>getItemPostId(name)</code> / <code>getItemUrl(name)</code> を
 追加し、商品名から投稿IDを動的に解決する方式に変更した。<code>wp post list --title=... --post_mime_type=item</code> は項目12と同じ理由（Welcart側の <code>pre_get_posts</code> フックが介在する
 とみられ、<code>WP_Query</code> 経由のフィルタとして機能しない。原因の完全な特定までは行っていない）
