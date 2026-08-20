@@ -518,14 +518,24 @@ Pedal=40 / OD-1 Overdrive=36 / Maple Snare 14inch=46 であり、共有環境の
    `e2e/helpers/shop.ts` が商品ページURLを投稿IDの直値で持っていることに起因する、
    別種の限界である。
 
-この限界は今回のスコープ（`entrypoint-and-idempotent-provisioning` 軸の指摘対応）
-では修正していない。修正するには `addToCart()` を投稿IDの直値ではなく、
-商品名から `wp post list` 等で都度URLを引く方式に変更する必要があり、
-`e2e/helpers/shop.ts` の変更を伴う。並行して別の generator が
-`docs/ai-report.md` の意図的な失敗確認の記録を共有環境に対して進めている最中
-であり、同じ working tree の `e2e/` ファイルを本タスクの範囲で書き換えると
-その作業と競合するおそれがあるため、ここでは発見事実の記録に留め、修正は
-別タスクとする。
+この限界は発見時点のスコープ（`entrypoint-and-idempotent-provisioning` 軸の指摘対応）
+では修正せず、発見事実の記録に留め、修正は別タスクとした。
+
+**追記（2周目フィードバック対応で修正済み）:** 上記で発見した投稿ID直値への依存は、
+本ラウンドで解消した。`e2e/helpers/wpcli.ts` に `getItemPostId()` / `getItemUrl()` を
+追加し、商品名から投稿IDを動的に解決する方式に変更した。`wp post list --title=...
+--post_mime_type=item` は `env-up.sh` の商品数カウントと同じ理由（Welcart側の
+pre_get_posts フックの影響でフィルタが機能しない）で使えないため、
+`getCategoryId()`（`wp term list`）と同じパターンは踏襲できず、`$wpdb->prepare()` を
+使う `wp eval` 経由で取得する方式にした。`e2e/helpers/shop.ts` の `ITEMS` からは
+`url`（投稿ID直値）フィールドを削除し、`addToCart()` 内で商品名ごとに URL を
+プロセス内キャッシュしつつ都度解決する設計に変更した（呼び出しのたびに
+WP-CLI を叩く速度低下を避けるため）。修正後、共有検証環境（`docker-wordpress-1`）
+に対して `cd e2e && npx playwright test` を実行し、既存4 spec・11件が全件PASSする
+ことを確認した（動的解決に変えても共有環境の商品名・投稿IDの対応関係自体は
+変わらないため、以前と同じ結果になる）。これにより前段②の限界は解消され、
+「まっさらな環境でも `composer e2e` が通る」という設計目標を投稿ID採番に依存せず
+達成できる状態になった。
 
 隔離環境は検証終了後、`docker compose -p wcd-e2e-freshcheck -f docker/docker-compose.yml
 down -v` で完全に破棄した（コンテナ・ボリューム・ネットワークとも削除を確認済み。

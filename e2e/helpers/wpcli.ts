@@ -46,6 +46,53 @@ export function resetToKnownState(): void {
   setExclusions({ ranks: [], categories: [] })
 }
 
+/** PHP のシングルクォート文字列リテラルとして安全な形にエスケープする。 */
+function escapePhpSingleQuoted(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+
+/**
+ * 商品名から投稿 ID を取得する。
+ *
+ * 実測して判明した事実: Welcart の商品は独立した投稿タイプ（`usces_item` 等）
+ * ではなく、`post_type=post` に `post_mime_type=item` を付与した投稿として
+ * 保存される（`docker/seed-items.php`、`e2e/bin/env-up.sh` のコメント参照）。
+ * `wp post list --post_mime_type=item --title=...` は Welcart 側の
+ * pre_get_posts フックが介在するとみられ、フィルタとして機能しないことを
+ * 実機で確認済み（`--title` 指定でも 0 件になる）。そのため `getCategoryId()`
+ * のような `wp term list` 相当の単純な CLI 検索は使えず、`$wpdb` を直接叩く
+ * `wp eval` 経由で取得する。
+ *
+ * 直値の投稿 ID をハードコードしていた旧実装は、まっさらな環境（採番が
+ * 異なる）で商品ページに遷移できず spec 全体が失敗する欠陥があった。
+ * 商品名から都度解決することで、投稿 ID の採番に依存しなくなる。
+ */
+export function getItemPostId(name: string): number {
+  const escapedName = escapePhpSingleQuoted(name)
+  const output = wp(
+    'eval',
+    'global $wpdb; echo (int) $wpdb->get_var( $wpdb->prepare(' +
+      ' "SELECT ID FROM {$wpdb->posts} WHERE post_type=%s AND post_mime_type=%s AND post_status=%s AND post_title=%s",' +
+      ` 'post', 'item', 'publish', '${escapedName}' ) );`,
+  )
+  const id = Number(output)
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error(`商品が見つかりません: ${name}`)
+  }
+  return id
+}
+
+/**
+ * 商品名から商品ページの URL（`?p=<投稿ID>` 形式）を返す。
+ *
+ * この検証環境のパーマリンク設定は「基本」（プレーン）であるため
+ * `/?p=<ID>` で商品ページへ直接遷移できる（`e2e/helpers/shop.ts` の
+ * `CART_URL` の実測メモと同じ前提）。
+ */
+export function getItemUrl(name: string): string {
+  return `/?p=${getItemPostId(name)}`
+}
+
 /**
  * 直近に作成された受注 ID を取得する。
  *

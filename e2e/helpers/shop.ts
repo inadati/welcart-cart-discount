@@ -1,20 +1,46 @@
 import { Page, expect } from '@playwright/test'
-import { getLatestOrderId } from './wpcli'
+import { getItemUrl, getLatestOrderId } from './wpcli'
 
 /**
  * 検証環境の商品25点のうち、E2E が使う4点。
  *
- * 価格・カテゴリは `docker/seed-items.php` の実データ。`url` は投稿 ID から
- * 実測して確定した値（下記「実測メモ」参照）。
+ * 価格・カテゴリは `docker/seed-items.php` の実データ。
+ *
+ * 2周目修正: 商品ページの URL は以前 `url: '/?p=181'` のように投稿 ID を
+ * 直値でハードコードしていたが、これは現在稼働中の共有検証環境で実測した
+ * 値に過ぎず、まっさらな環境（`docker/setup.sh` を最初から実行した環境）
+ * では投稿 ID の採番が異なる（隔離検証では Practice Pad Set が ID=78 に
+ * なり、181 ではなかった）。そのため「まっさらな状態から `composer e2e`
+ * が通る」という設計目標に反していた。投稿 ID 直値は持たず、商品名から
+ * `getItemUrl()`（WP-CLI 経由で動的に解決）でその都度求める方式に変更した。
  */
 export const ITEMS = {
-  practicePad: { name: 'Practice Pad Set', price: 7500, category: 'ドラム', url: '/?p=181' },
-  tunerPedal: { name: 'Compact Tuner Pedal', price: 6800, category: 'エフェクター', url: '/?p=171' },
-  overdrive: { name: 'OD-1 Overdrive', price: 12800, category: 'エフェクター', url: '/?p=167' },
-  mapleSnare: { name: 'Maple Snare 14inch', price: 28000, category: 'ドラム', url: '/?p=177' },
+  practicePad: { name: 'Practice Pad Set', price: 7500, category: 'ドラム' },
+  tunerPedal: { name: 'Compact Tuner Pedal', price: 6800, category: 'エフェクター' },
+  overdrive: { name: 'OD-1 Overdrive', price: 12800, category: 'エフェクター' },
+  mapleSnare: { name: 'Maple Snare 14inch', price: 28000, category: 'ドラム' },
 } as const
 
 const ITEM_LIST = Object.values(ITEMS)
+
+/**
+ * 商品名 → 商品ページ URL のキャッシュ。
+ *
+ * `addToCart()` は同じ商品名で複数回呼ばれる（spec をまたいで積み直す）ため、
+ * 呼び出しのたびに WP-CLI（docker compose run）を叩くと体感速度が落ちる。
+ * プロセス内で一度解決した URL は使い回す。
+ */
+const itemUrlCache = new Map<string, string>()
+
+function resolveItemUrl(itemName: string): string {
+  const cached = itemUrlCache.get(itemName)
+  if (cached) {
+    return cached
+  }
+  const url = getItemUrl(itemName)
+  itemUrlCache.set(itemName, url)
+  return url
+}
 
 /**
  * カート画面の URL。
@@ -44,8 +70,9 @@ export async function emptyCart(page: Page): Promise<void> {
  * 想定していたが、実測するとトップページ（フロントページ）には25商品中6点しか
  * 一覧表示されず、Practice Pad Set 等はそこに現れない
  * （`curl http://localhost:8080/` の `product-card__name` を数えると6件のみ）。
- * そのためリンク探索はやめ、ITEMS に持たせた商品ページ URL（`?p=<投稿ID>`）へ
- * 直接遷移する方式に変更した。
+ * そのためリンク探索はやめ、商品ページ URL（`?p=<投稿ID>`）へ直接遷移する
+ * 方式にした。投稿 ID は環境ごとに採番が異なるため直値は持たず、
+ * `getItemUrl()`（WP-CLI 経由）で商品名から都度解決する（2周目修正）。
  *
  * 「カートに入れる」ボタンの name 属性 `inCart[...]` は実ページで確認済み
  * （`usces_the_itemSkuButton()` が生成する）。
@@ -55,7 +82,8 @@ export async function addToCart(page: Page, itemName: string): Promise<void> {
   if (!item) {
     throw new Error(`ITEMS に無い商品名です: ${itemName}`)
   }
-  await page.goto(item.url)
+  const url = resolveItemUrl(item.name)
+  await page.goto(url)
   await page.locator('input[name^="inCart"]').click()
   await page.waitForLoadState('networkidle')
 }
