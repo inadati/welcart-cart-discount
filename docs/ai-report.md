@@ -923,8 +923,9 @@ Compact Tuner Pedal=40 / OD-1 Overdrive=36 / Maple Snare 14inch=46 であり、�
 
 **修正内容**: `e2e/helpers/wpcli.ts` に `getItemPostId(name)` / `getItemUrl(name)` を
 追加し、商品名から投稿IDを動的に解決する方式に変更した。`wp post list --title=...
---post_mime_type=item` は項目12・項目20と同じ理由（Welcart側の `pre_get_posts` フックの
-影響で `WP_Query` 経由のフィルタが機能しない）で使えないため、`getCategoryId()`
+--post_mime_type=item` は項目12と同じ理由（Welcart側の `pre_get_posts` フックが介在する
+とみられ、`WP_Query` 経由のフィルタとして機能しない。原因の完全な特定までは行っていない）
+で使えないため、`getCategoryId()`
 （`wp term list`）と同じパターンは踏襲できず、`$wpdb->prepare()` を使う `wp eval` 経由で
 `{$wpdb->posts}` を直接問い合わせる方式にした。`e2e/helpers/shop.ts` の `ITEMS` からは
 `url`（投稿ID直値）フィールドを削除し、`addToCart()` 内で商品名ごとに `itemUrlCache`
