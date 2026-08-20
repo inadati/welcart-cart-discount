@@ -85,4 +85,60 @@ class WCD_Exclusion_Settings {
 			'categories' => array_values( $categories ),
 		);
 	}
+
+	/**
+	 * 保存済みの除外設定を返す。
+	 *
+	 * @return array array{ranks: array<int|string>, categories: array<int>}。
+	 */
+	public static function get() {
+		$saved = get_option( self::OPTION_KEY, array() );
+
+		if ( ! is_array( $saved ) ) {
+			$saved = array();
+		}
+
+		return array(
+			'ranks'      => isset( $saved['ranks'] ) && is_array( $saved['ranks'] ) ? $saved['ranks'] : array(),
+			'categories' => isset( $saved['categories'] ) && is_array( $saved['categories'] ) ? $saved['categories'] : array(),
+		);
+	}
+
+	/**
+	 * 除外設定を保存する。
+	 *
+	 * @param array $raw 生の入力.
+	 * @return void
+	 */
+	public static function save( array $raw ) {
+		update_option( self::OPTION_KEY, self::normalize( $raw, array_keys( self::get_known_ranks() ) ) );
+	}
+
+	/**
+	 * 会員ランクの選択肢を、擬似ランク「未ログイン（非会員）」を加えて返す。
+	 *
+	 * @return array<int|string, string> ランクキー（int または 'guest'） => ラベル.
+	 */
+	public static function get_rank_choices() {
+		$choices = array(
+			self::GUEST_RANK => __( '未ログイン（非会員）', 'welcart-cart-discount' ),
+		);
+
+		foreach ( self::get_known_ranks() as $rank_id => $label ) {
+			$choices[ $rank_id ] = $label;
+		}
+
+		return $choices;
+	}
+
+	/**
+	 * Welcart の会員ランク定義（option `usces_customer_status`）を返す。
+	 *
+	 * @return array<int, string> ランクID => ラベル.
+	 */
+	private static function get_known_ranks() {
+		$statuses = get_option( 'usces_customer_status', array() );
+
+		return is_array( $statuses ) ? $statuses : array();
+	}
 }
